@@ -1,14 +1,38 @@
 # AleoSwap Program
 
-## Build Guide
+AleoSwap is a decentralized exchange (DEX) built on the Aleo blockchain, utilizing the Uniswap mechanism. It leverages the unique features of the Aleo blockchain to offer enhanced privacy and new functionalities to both the DEX and its users.
 
-To compile this Leo/Aleo program, run:
+We are currently undergoing rapid iteration. Some of the optimizations and new features may require Aleo(snarkVM, aleo lang) to provide additional features and support before they can be implemented.
 
-```bash
-leo build
-```
+## TOC
+- [AleoSwap Program](#aleoswap-program)
+  - [TOC](#toc)
+  - [Functions](#functions)
+    - [create\_token](#create_token)
+    - [transfer](#transfer)
+    - [approve](#approve)
+    - [transfer\_from](#transfer_from)
+    - [transfer\_to\_private](#transfer_to_private)
+    - [transfer\_to\_public](#transfer_to_public)
+    - [transfer\_privately](#transfer_privately)
+    - [join](#join)
+    - [create\_pair](#create_pair)
+    - [add\_liquidity](#add_liquidity)
+    - [remove\_liquidity](#remove_liquidity)
+    - [swap\_exact\_tokens\_for\_tokens](#swap_exact_tokens_for_tokens)
+    - [swap\_tokens\_for\_exact\_tokens](#swap_tokens_for_exact_tokens)
+    - [token\_faucet](#token_faucet)
+    - [set\_token\_faucet](#set_token_faucet)
+    - [change\_token\_admin](#change_token_admin)
+  - [Public States](#public-states)
+    - [balances](#balances)
+    - [allowance](#allowance)
+    - [tokens](#tokens)
+    - [faucets](#faucets)
+    - [pairs](#pairs)
+    - [global\_state](#global_state)
 
-## ABI Docs
+## Functions
 
 ### create_token
 
@@ -28,10 +52,12 @@ Params:
       symbol: field,
       decimals: u8,
       total_supply: u128,
+      admin: address,
   }
   ```
 - We need to convert `name` and `symbol` string directly to bytes array and then to field (integer) type.
   e.g. `USDT -> 1431520340field`.
+- The admin can perform some special operations on the token, like `set_token_faucet`.
 
 ### transfer
 
@@ -79,19 +105,76 @@ Params:
 - `to: address`: the receiver address
 - `amount: u128`: amount of tokens to be transferred
 
-### token_faucet
+### transfer_to_private
 
-`token_faucet` is used to obtain a small number of tokens for free.
-- This function is used to facilitate users to get test tokens, it only exists in the test network.
+`transfer_to_private` is used to transfer and convert public tokens to a private token record (PrivateToken).
 
 Function:
 ```rust
-token_faucet(public token_id: field, public to: address)
+transfer_to_private(public token_id: field, private to: address, public amount: u128) -> PrivateToken
 ```
 
 Params:
-- `token_id: field`: the id of the token
+- `token_id: field`: the token id to be transferred
 - `to: address`: the receiver address
+- `amount: u128`: amount of tokens to be transferred and converted
+- Output 1 PrivateToken record: a new PrivateToken record the following structure:
+
+  ```
+  record PrivateToken {
+      // The token owner
+      owner: address,
+      // The token id
+      token: field,
+      // The token amount
+      amount: u128,
+  }
+  ```
+
+### transfer_to_public
+
+`transfer_to_public` is used to transfer and convert a private token record (`PrivateToken`) to public tokens.
+
+Function:
+```rust
+transfer_to_public(private pt_in: PrivateToken, public to: address, public amount: u128) -> PrivateToken
+```
+
+Params:
+- `pt_in: PrivateToken`: the PrivateToken record to be spent
+- `to: address`: the receiver address
+- `amount: u128`: amount of tokens to be transferred and converted
+- Output 1 PrivateToken record: it is a new PrivateToken record (owned by the caller) with an amount of `pt_in.amount - amount`.
+
+### transfer_privately
+
+`transfer_privately` is used to transfer private tokens (`PrivateToken` records).
+
+Function:
+```rust
+transfer_privately(private pt_in: PrivateToken, private to: address, private amount: u128) -> (PrivateToken, PrivateToken)
+```
+
+Params:
+- `pt_in: PrivateToken`: the PrivateToken record to be spent
+- `to: address`: the receiver address
+- `amount: u128`: amount of tokens to be transferred
+- Output 2 PrivateToken records: the first is belonging to the receiver(`to`), the second is a change belonging to the caller
+
+### join
+
+`join` is used to merge two `PrivateToken` records into a new `PrivateToken` record.
+- The two records being merged must have the same owner and token
+
+Function:
+```rust
+join(private pt1: PrivateToken, private pt2: PrivateToken) -> PrivateToken
+```
+
+Params:
+- `pt1: PrivateToken`: the PrivateToken record to be spent
+- `pt2: PrivateToken`: the PrivateToken record to be spent
+- Output 1 PrivateToken record: the new record with an amount of `pt1.amount + pt2.amount`.
 
 ### create_pair
 
@@ -216,6 +299,49 @@ Params:
 - `amount_out: u128`: the fixed amount of output token
 - `to: address`: the address to receive the output tokens
 
+### token_faucet
+
+`token_faucet` is used to obtain a small number of tokens for free.
+- The faucet is used to facilitate users to get test tokens, it only exists in the test network.
+
+Function:
+```rust
+token_faucet(public token_id: field, public to: address)
+```
+
+Params:
+- `token_id: field`: the id of the token
+- `to: address`: the receiver address
+
+### set_token_faucet
+
+`set_token_faucet` is used to configure the faucet amount of the token.
+- Only the admin of the token can call this function.
+- The faucet is used to facilitate users to get test tokens, it only exists in the test network.
+
+Function:
+```rust
+set_token_faucet(public token_id: field, public amount: u128)
+```
+
+Params:
+- `token_id: field`: the id of the token
+- `amount: u128`: the amount of tokens the user can receive each time calling `token_faucet`. Set to 0 to turn off faucet.
+
+### change_token_admin
+
+`change_token_admin` is used to change the token admin address.
+- Only the admin of the token can call this function.
+
+Function:
+```rust
+change_token_admin(public token_id: field, public admin: address)
+```
+
+Params:
+- `token_id: field`: the id of the token
+- `admin: address`: the new admin address. It can be set to a special address to renounce administrator permissions.
+
 ## Public States
 
 ### balances
@@ -255,6 +381,7 @@ curl $aleoRpc/testnet3/program/swap.aleo/mapping/allowance/$key
       symbol: field,
       decimals: u8,
       total_supply: u128,
+      admin: address,
   }
   ```
 

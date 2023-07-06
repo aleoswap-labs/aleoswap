@@ -118,9 +118,9 @@ Params:
 - `token_id: field`: the token id to be transferred
 - `to: address`: the receiver address
 - `amount: u128`: amount of tokens to be transferred and converted
-- Output 1 PrivateToken record: a new PrivateToken record the following structure:
+- Output 1 PrivateToken record: a new PrivateToken record with the following structure:
 
-  ```
+  ```rust
   record PrivateToken {
       // The token owner
       owner: address,

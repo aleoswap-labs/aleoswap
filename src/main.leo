@@ -32,6 +32,7 @@ program swap.aleo {
 
     struct GlobalState {
         next_token_id: field,
+        admin: address,
     }
 
     struct BalanceKeyData {
@@ -66,10 +67,12 @@ program swap.aleo {
     finalize create_token(public info: TokenInfo, public caller: address) {
         let gs: GlobalState = Mapping::get_or_use(global_state, true, GlobalState {
             next_token_id: 1field,
+            admin: aleo1tdszx3hcgnyp2jw3y3fzvw27vremxcs24u4pys6vptg9y2jfsvps8e8ffz,
         });
         let token_id: field = gs.next_token_id;
         Mapping::set(global_state, true, GlobalState {
             next_token_id: token_id + 1field,
+            admin: gs.admin,
         });
         Mapping::set(tokens, token_id, info);
         let balance_id: field = get_balance_id(token_id, caller);
@@ -82,7 +85,7 @@ program swap.aleo {
 
     finalize transfer(public token_id: field, public from: address, public to: address, public amount: u128) {
         // confirm token exists
-        Mapping::get(tokens, token_id);
+        assert(Mapping::contains(tokens, token_id));
         let bid_from: field = get_balance_id(token_id, from);
         let bal_from: u128 = Mapping::get(balances, bid_from);
         Mapping::set(balances, bid_from, bal_from - amount);
@@ -98,7 +101,7 @@ program swap.aleo {
 
     finalize approve(public token_id: field, public caller: address, public spender: address, public amount: u128) {
         // confirm token exists
-        Mapping::get(tokens, token_id);
+        assert(Mapping::contains(tokens, token_id));
         let key: field = get_allowance_id(token_id, caller, spender);
         Mapping::set(allowance, key, amount);
     }
@@ -120,7 +123,7 @@ program swap.aleo {
         public amount: u128
     ) {
         // confirm token exists
-        Mapping::get(tokens, token_id);
+        assert(Mapping::contains(tokens, token_id));
         let key: field = get_allowance_id(token_id, from, caller);
         Mapping::set(allowance, key, Mapping::get(allowance, key) - amount);
 
@@ -181,6 +184,23 @@ program swap.aleo {
         Mapping::set(balances, bid_to, Mapping::get_or_use(balances, bid_to, 0u128) + amount);
     }
 
+    // ========================= admin =========================
+    transition change_admin(public admin: address) {
+        return then finalize(self.caller, admin);
+    }
+
+    finalize change_admin(public caller: address, public admin: address) {
+        let gs: GlobalState = Mapping::get_or_use(global_state, true, GlobalState {
+            next_token_id: 1field,
+            admin: aleo1tdszx3hcgnyp2jw3y3fzvw27vremxcs24u4pys6vptg9y2jfsvps8e8ffz,
+        });
+        assert_eq(caller, gs.admin);
+        Mapping::set(global_state, true, GlobalState {
+            next_token_id: gs.next_token_id,
+            admin: admin,
+        });
+    }
+
     // ========================= private token =========================
 
     transition transfer_to_private(public token_id: field, private to: address, public amount: u128) -> PrivateToken {
@@ -195,7 +215,8 @@ program swap.aleo {
     }
 
     finalize transfer_to_private(public token_id: field, public from: address, public amount: u128) {
-        Mapping::get(tokens, token_id);
+        // confirm token exists
+        assert(Mapping::contains(tokens, token_id));
         let bid_from: field = get_balance_id(token_id, from);
         Mapping::set(balances, bid_from, Mapping::get(balances, bid_from) - amount);
     }
@@ -210,7 +231,8 @@ program swap.aleo {
     }
 
     finalize transfer_to_public(public token_id: field, public to: address, public amount: u128) {
-        Mapping::get(tokens, token_id);
+        // confirm token exists
+        assert(Mapping::contains(tokens, token_id));
         let bid_to: field = get_balance_id(token_id, to);
         Mapping::set(balances, bid_to, Mapping::get_or_use(balances, bid_to, 0u128) + amount);
     }

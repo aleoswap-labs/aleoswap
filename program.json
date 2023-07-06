@@ -1,7 +1,7 @@
 {
   "program": "swap.aleo",
   "version": "0.1.0",
-  "description": "",
+  "description": "A decentralized exchange (DEX) built on the Aleo blockchain",
   "development": {
     "private_key": "APrivateKey1zkpFNWDiRwsxFKCD69NhVVZVt1esDEqv8L5R6vknktYuviQ",
     "address": "aleo1nphxru452df0p2sf4nguh320j4md8p80v2fjmnnrg42vjrjycs8qa9m7yp"

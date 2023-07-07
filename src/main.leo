@@ -58,6 +58,7 @@ program swap.aleo {
 
     // ========================= token =========================
 
+    // Create a new token.
     transition create_token(public info: TokenInfo) {
         assert(info.name > 0field);
         // assert(info.total_supply <= 18446744073709551615u128);
@@ -79,6 +80,7 @@ program swap.aleo {
         Mapping::set(balances, balance_id, info.total_supply);
     }
 
+    // Transfer public tokens.
     transition transfer(public token_id: field, public to: address, public amount: u128) {
         return then finalize(token_id, self.caller, to, amount);
     }
@@ -95,6 +97,7 @@ program swap.aleo {
         Mapping::set(balances, bid_to, bal_to + amount);
     }
 
+    // Authorize other accounts to spend tokens.
     transition approve(public token_id: field, public spender: address, public amount: u128) {
         return then finalize(token_id, self.caller, spender, amount);
     }
@@ -106,6 +109,7 @@ program swap.aleo {
         Mapping::set(allowance, key, amount);
     }
 
+    // Transfer public tokens from other accounts.
     transition transfer_from(
         public token_id: field,
         public from: address,
@@ -135,6 +139,9 @@ program swap.aleo {
     }
 
     // ========================= token advanced =========================
+
+    // Configure the faucet amount of the token.
+    // Only the token's admin can successfully perform this operation.
     transition set_token_faucet(public token_id: field, public amount: u128) {
         return then finalize(self.caller, token_id, amount);
     }
@@ -146,6 +153,8 @@ program swap.aleo {
         Mapping::set(faucets, token_id, amount);
     }
 
+    // Change the token's admin address.
+    // Only the token's admin can successfully perform this operation.
     transition change_token_admin(public token_id: field, public admin: address) {
         return then finalize(self.caller, token_id, admin);
     }
@@ -163,6 +172,7 @@ program swap.aleo {
         });
     }
 
+    // Obtain some tokens from the token's faucet for free.
     transition token_faucet(public token_id: field, public to: address) {
         return then finalize(token_id, to);
     }
@@ -185,6 +195,8 @@ program swap.aleo {
     }
 
     // ========================= admin =========================
+
+    // Change the main admin of the program.
     transition change_admin(public admin: address) {
         return then finalize(self.caller, admin);
     }
@@ -203,6 +215,7 @@ program swap.aleo {
 
     // ========================= private token =========================
 
+    // Transfer and convert public tokens to a new private token record (PrivateToken).
     transition transfer_to_private(public token_id: field, private to: address, public amount: u128) -> PrivateToken {
         // mint a new private token
         let pt: PrivateToken = PrivateToken {
@@ -221,6 +234,7 @@ program swap.aleo {
         Mapping::set(balances, bid_from, Mapping::get(balances, bid_from) - amount);
     }
 
+    // Transfer and convert a private token record (`PrivateToken`) to public tokens.
     transition transfer_to_public(private pt_in: PrivateToken, public to: address, public amount: u128) -> PrivateToken {
         let pt_change: PrivateToken = PrivateToken {
             owner: pt_in.owner,
@@ -237,6 +251,7 @@ program swap.aleo {
         Mapping::set(balances, bid_to, Mapping::get_or_use(balances, bid_to, 0u128) + amount);
     }
 
+    // Transfer private tokens (`PrivateToken` records).
     transition transfer_privately(private pt_in: PrivateToken, private to: address, private amount: u128) -> (PrivateToken, PrivateToken) {
         let pt_to: PrivateToken = PrivateToken {
             owner: to,
@@ -252,6 +267,8 @@ program swap.aleo {
         return (pt_to, pt_change);
     }
 
+    // Merge two `PrivateToken` records into a new `PrivateToken` record.
+    // The two records being joined must have the same owner and the token id.
     transition join(private pt1: PrivateToken, private pt2: PrivateToken) -> PrivateToken {
         assert_eq(pt1.token, pt2.token);
         // the following should always be true
@@ -266,6 +283,11 @@ program swap.aleo {
 
     // ========================= liquidity =========================
 
+    // Create a new pair and add initial liquidity.
+    // A pair must be created through this function before subsequent liquidity and swap operations can be performed.
+    // Each pair is also a standard token (called liquidity pool token or LP token) created automatically when the pair is created,
+    // and its token_id is the same as pair_id: `lp_token_id = pair_id = bhp256_hash({token_a: field, token_b: field})`.
+    // The caller's token_a and token_b will be transferred to the program, and LP tokens will be minted to the `to` address.
     transition create_pair(
         public token_a: field,
         public token_b: field,
@@ -330,85 +352,8 @@ program swap.aleo {
         });
     }
 
-    // transition create_pair_privately(
-    //     private pt_a: PrivateToken,
-    //     private pt_b: PrivateToken,
-    //     private amount_a: u128,
-    //     private amount_b: u128,
-    //     private to: address,
-    //     private pair_id: field,
-    //     private liquidity: u128,
-    //  ) -> (PrivateToken, PrivateToken, PrivateToken) {
-    //     let token_a: field = pt_a.token;
-    //     let token_b: field = pt_b.token;
-    //     assert(token_a < token_b);
-    //     assert(amount_a > 0u128);
-    //     assert(amount_b > 0u128);
-    //     assert(liquidity > 0u128);
-    //     let change_a: PrivateToken = PrivateToken {
-    //         owner: pt_a.owner,
-    //         token: token_a,
-    //         amount: pt_a.amount - amount_a,
-    //     };
-    //     let change_b: PrivateToken = PrivateToken {
-    //         owner: pt_b.owner,
-    //         token: token_b,
-    //         amount: pt_b.amount - amount_b,
-    //     };
-
-    //     // let pid: field = get_pair_id(token_a, token_b);
-    //     // let liquidity: u128 = sqrt_u128(amount_a * amount_b);
-    //     let pt_lp: PrivateToken = PrivateToken {
-    //         owner: to,
-    //         token: pair_id,
-    //         amount: liquidity,
-    //     };
-    //     return (pt_lp, change_a, change_b) then finalize(token_a, token_b, amount_a, amount_b, pair_id, liquidity);
-    // }
-
-    // finalize create_pair_privately(
-    //     public token_a: field,
-    //     public token_b: field,
-    //     public amount_a: u128,
-    //     public amount_b: u128,
-    //     public pid_in: field,
-    //     public liquidity_in: u128,
-    // ) {
-    //     let pid: field = get_pair_id(token_a, token_b);
-    //     assert(pid_in == pid);
-    //     let liquidity: u128 = sqrt_u128(amount_a * amount_b);
-    //     assert(liquidity_in == liquidity);
-
-    //     let ti_pair: TokenInfo = Mapping::get_or_use(tokens, pid, TokenInfo {
-    //         name: 5183377571718029925300968712562field, // AleoSwap-Pair
-    //         symbol: 4281168field, // ASP
-    //         decimals: 6u8,
-    //         total_supply: 0u128,
-    //         admin: aleo1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq3ljyzc,
-    //     });
-    //     assert_eq(ti_pair.total_supply, 0u128);
-
-    //     let pair: Pair = Mapping::get_or_use(pairs, pid, Pair {
-    //         reserve_a: 0u128,
-    //         reserve_b: 0u128,
-    //     });
-
-    //     // mint liquidity
-    //     Mapping::set(tokens, pid, TokenInfo {
-    //         name: ti_pair.name,
-    //         symbol: ti_pair.symbol,
-    //         decimals: ti_pair.decimals,
-    //         total_supply: ti_pair.total_supply + liquidity,
-    //         admin: ti_pair.admin,
-    //     });
-
-    //     // update pair
-    //     Mapping::set(pairs, pid, Pair {
-    //         reserve_a: pair.reserve_a + amount_a,
-    //         reserve_b: pair.reserve_b + amount_b,
-    //     });
-    // }
-
+    // Add liquidity to a pair.
+    // The caller's `token_a` and `token_b` will be transferred to the program, and LP tokens will be minted to the `to` address.
     transition add_liquidity(
         public token_a: field,
         public token_b: field,
@@ -474,6 +419,8 @@ program swap.aleo {
         });
     }
 
+    // Remove liquidity from a pair.
+    // The caller's LP tokens will be burned, `token_a` and `token_b` will be transferred to the `to` address.
     transition remove_liquidity(
         public token_a: field,
         public token_b: field,
@@ -532,6 +479,7 @@ program swap.aleo {
 
     // ========================= swap =========================
 
+    // Exchange a fixed amount of input token for a variable amount of output token.
     transition swap_exact_tokens_for_tokens(
         public token_in: field,
         public token_out: field,
@@ -582,6 +530,7 @@ program swap.aleo {
         Mapping::set(balances, bid_out, Mapping::get_or_use(balances, bid_out, 0u128) + amount_out);
     }
 
+    // Exchange a variable amount of input token for a fixed amount of output token.
     transition swap_tokens_for_exact_tokens(
         public token_in: field,
         public token_out: field,

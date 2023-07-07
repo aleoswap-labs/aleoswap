@@ -91,7 +91,7 @@ Params:
 
 ### transfer_from
 
-`transfer_from` is used to transfer of tokens from other accounts.
+`transfer_from` is used to transfer public tokens from other accounts.
 - It is similar to the ERC20 transfer_from, but with an additional `token_id` parameter.
 
 Function:
@@ -107,7 +107,7 @@ Params:
 
 ### transfer_to_private
 
-`transfer_to_private` is used to transfer and convert public tokens to a private token record (PrivateToken).
+`transfer_to_private` is used to transfer and convert public tokens to a new private token record (PrivateToken).
 
 Function:
 ```rust
@@ -164,7 +164,7 @@ Params:
 ### join
 
 `join` is used to merge two `PrivateToken` records into a new `PrivateToken` record.
-- The two records being merged must have the same owner and token
+- The two records being joined must have the same owner and the token id.
 
 Function:
 ```rust
@@ -180,8 +180,10 @@ Params:
 
 `create_pair` is used to create a new pair and add initial liquidity.
 - A pair must be created through this function before subsequent liquidity and swap operations can be performed.
+- Each pair is also a standard token (called liquidity pool token or LP token) created automatically when the pair is created,
+  and its token_id is the same as pair_id: `lp_token_id = pair_id = bhp256_hash({token_a: field, token_b: field})`.
 - This function can only be used to add initial liquidity, further liquidity additions require calling the `add_liquidity` function.
-- Each pair is also a standard token (called LP token, created automatically when the pair is created), and its token_id is the same as pair_id: `lp_token_id = pair_id = bhp256_hash({token_a: field, token_b: field})`.
+- The caller's token_a and token_b will be transferred to the program, and LP tokens will be minted to the `to` address.
 
 Function:
 ```rust
@@ -204,6 +206,7 @@ Params:
 ### add_liquidity
 
 `add_liquidity` is used to add liquidity to a pair.
+- The caller's `token_a` and `token_b` will be transferred to the program, and LP tokens will be minted to the `to` address.
 
 Function:
 ```rust
@@ -230,6 +233,7 @@ Params:
 ### remove_liquidity
 
 `remove_liquidity` is used to remove liquidity from a pair.
+- The caller's LP tokens will be burned, `token_a` and `token_b` will be transferred to the `to` address.
 
 Function:
 ```rust
@@ -301,7 +305,7 @@ Params:
 
 ### token_faucet
 
-`token_faucet` is used to obtain a small number of tokens for free.
+`token_faucet` is used to obtain some tokens from the token's faucet for free.
 - The faucet is used to facilitate users to get test tokens, it only exists in the test network.
 
 Function:
@@ -316,7 +320,7 @@ Params:
 ### set_token_faucet
 
 `set_token_faucet` is used to configure the faucet amount of the token.
-- Only the admin of the token can call this function.
+- Only the token's admin can successfully perform this operation.
 - The faucet is used to facilitate users to get test tokens, it only exists in the test network.
 
 Function:
@@ -330,8 +334,8 @@ Params:
 
 ### change_token_admin
 
-`change_token_admin` is used to change the token admin address.
-- Only the admin of the token can call this function.
+`change_token_admin` is used to change the token's admin address.
+- Only the token's admin can successfully perform this operation.
 
 Function:
 ```rust

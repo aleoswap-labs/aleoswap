@@ -429,6 +429,7 @@ curl $aleoRpc/testnet3/program/swap.aleo/mapping/pairs/$pair_id
   ```rust
   struct GlobalState {
       next_token_id: field,
+      admin: address,
   }
   ```
 

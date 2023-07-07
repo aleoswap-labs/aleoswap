@@ -330,84 +330,84 @@ program swap.aleo {
         });
     }
 
-    transition create_pair_privately(
-        private pt_a: PrivateToken,
-        private pt_b: PrivateToken,
-        private amount_a: u128,
-        private amount_b: u128,
-        private to: address,
-        private pair_id: field,
-        private liquidity: u128,
-     ) -> (PrivateToken, PrivateToken, PrivateToken) {
-        let token_a: field = pt_a.token;
-        let token_b: field = pt_b.token;
-        assert(token_a < token_b);
-        assert(amount_a > 0u128);
-        assert(amount_b > 0u128);
-        assert(liquidity > 0u128);
-        let change_a: PrivateToken = PrivateToken {
-            owner: pt_a.owner,
-            token: token_a,
-            amount: pt_a.amount - amount_a,
-        };
-        let change_b: PrivateToken = PrivateToken {
-            owner: pt_b.owner,
-            token: token_b,
-            amount: pt_b.amount - amount_b,
-        };
+    // transition create_pair_privately(
+    //     private pt_a: PrivateToken,
+    //     private pt_b: PrivateToken,
+    //     private amount_a: u128,
+    //     private amount_b: u128,
+    //     private to: address,
+    //     private pair_id: field,
+    //     private liquidity: u128,
+    //  ) -> (PrivateToken, PrivateToken, PrivateToken) {
+    //     let token_a: field = pt_a.token;
+    //     let token_b: field = pt_b.token;
+    //     assert(token_a < token_b);
+    //     assert(amount_a > 0u128);
+    //     assert(amount_b > 0u128);
+    //     assert(liquidity > 0u128);
+    //     let change_a: PrivateToken = PrivateToken {
+    //         owner: pt_a.owner,
+    //         token: token_a,
+    //         amount: pt_a.amount - amount_a,
+    //     };
+    //     let change_b: PrivateToken = PrivateToken {
+    //         owner: pt_b.owner,
+    //         token: token_b,
+    //         amount: pt_b.amount - amount_b,
+    //     };
 
-        // let pid: field = get_pair_id(token_a, token_b);
-        // let liquidity: u128 = sqrt_u128(amount_a * amount_b);
-        let pt_lp: PrivateToken = PrivateToken {
-            owner: to,
-            token: pair_id,
-            amount: liquidity,
-        };
-        return (pt_lp, change_a, change_b) then finalize(token_a, token_b, amount_a, amount_b, pair_id, liquidity);
-    }
+    //     // let pid: field = get_pair_id(token_a, token_b);
+    //     // let liquidity: u128 = sqrt_u128(amount_a * amount_b);
+    //     let pt_lp: PrivateToken = PrivateToken {
+    //         owner: to,
+    //         token: pair_id,
+    //         amount: liquidity,
+    //     };
+    //     return (pt_lp, change_a, change_b) then finalize(token_a, token_b, amount_a, amount_b, pair_id, liquidity);
+    // }
 
-    finalize create_pair_privately(
-        public token_a: field,
-        public token_b: field,
-        public amount_a: u128,
-        public amount_b: u128,
-        public pid_in: field,
-        public liquidity_in: u128,
-    ) {
-        let pid: field = get_pair_id(token_a, token_b);
-        assert(pid_in == pid);
-        let liquidity: u128 = sqrt_u128(amount_a * amount_b);
-        assert(liquidity_in == liquidity);
+    // finalize create_pair_privately(
+    //     public token_a: field,
+    //     public token_b: field,
+    //     public amount_a: u128,
+    //     public amount_b: u128,
+    //     public pid_in: field,
+    //     public liquidity_in: u128,
+    // ) {
+    //     let pid: field = get_pair_id(token_a, token_b);
+    //     assert(pid_in == pid);
+    //     let liquidity: u128 = sqrt_u128(amount_a * amount_b);
+    //     assert(liquidity_in == liquidity);
 
-        let ti_pair: TokenInfo = Mapping::get_or_use(tokens, pid, TokenInfo {
-            name: 5183377571718029925300968712562field, // AleoSwap-Pair
-            symbol: 4281168field, // ASP
-            decimals: 6u8,
-            total_supply: 0u128,
-            admin: aleo1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq3ljyzc,
-        });
-        assert_eq(ti_pair.total_supply, 0u128);
+    //     let ti_pair: TokenInfo = Mapping::get_or_use(tokens, pid, TokenInfo {
+    //         name: 5183377571718029925300968712562field, // AleoSwap-Pair
+    //         symbol: 4281168field, // ASP
+    //         decimals: 6u8,
+    //         total_supply: 0u128,
+    //         admin: aleo1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq3ljyzc,
+    //     });
+    //     assert_eq(ti_pair.total_supply, 0u128);
 
-        let pair: Pair = Mapping::get_or_use(pairs, pid, Pair {
-            reserve_a: 0u128,
-            reserve_b: 0u128,
-        });
+    //     let pair: Pair = Mapping::get_or_use(pairs, pid, Pair {
+    //         reserve_a: 0u128,
+    //         reserve_b: 0u128,
+    //     });
 
-        // mint liquidity
-        Mapping::set(tokens, pid, TokenInfo {
-            name: ti_pair.name,
-            symbol: ti_pair.symbol,
-            decimals: ti_pair.decimals,
-            total_supply: ti_pair.total_supply + liquidity,
-            admin: ti_pair.admin,
-        });
+    //     // mint liquidity
+    //     Mapping::set(tokens, pid, TokenInfo {
+    //         name: ti_pair.name,
+    //         symbol: ti_pair.symbol,
+    //         decimals: ti_pair.decimals,
+    //         total_supply: ti_pair.total_supply + liquidity,
+    //         admin: ti_pair.admin,
+    //     });
 
-        // update pair
-        Mapping::set(pairs, pid, Pair {
-            reserve_a: pair.reserve_a + amount_a,
-            reserve_b: pair.reserve_b + amount_b,
-        });
-    }
+    //     // update pair
+    //     Mapping::set(pairs, pid, Pair {
+    //         reserve_a: pair.reserve_a + amount_a,
+    //         reserve_b: pair.reserve_b + amount_b,
+    //     });
+    // }
 
     transition add_liquidity(
         public token_a: field,

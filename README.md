@@ -59,6 +59,13 @@ Params:
   e.g. `USDT -> 1431520340field`.
 - The admin can perform some special operations on the token, like `set_token_faucet`.
 
+Command:
+```sh
+# Create a new token: name=USDT, symbol=USDT, decimals=6, total_supply=1e8*1e6, admin=$admin_addr
+snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
+  $program_id create_token "{name: 1431520340field, symbol: 1431520340field, decimals: 6u8, total_supply: 100000000000000u128, admin: $admin_addr}"
+```
+
 ### transfer
 
 `transfer` is used to transfer public tokens.
@@ -73,6 +80,12 @@ Params:
 - `token_id: field`: the token id to be transferred
 - `to: address`: the receiver address
 - `amount: u128`: amount of tokens to be transferred
+
+Command:
+```sh
+snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
+  $program_id transfer 1field $to_address 100000000u128
+```
 
 ### approve
 
@@ -89,6 +102,12 @@ Params:
 - `spender: address`: the spender address
 - `amount: u128`: the maximum amount that the spender can spend
 
+Command:
+```sh
+snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
+  $program_id approve 1field $spender 10000000000u128
+```
+
 ### transfer_from
 
 `transfer_from` is used to transfer public tokens from other accounts.
@@ -104,6 +123,12 @@ Params:
 - `from: address`: the address of the account from which the token is transferred
 - `to: address`: the receiver address
 - `amount: u128`: amount of tokens to be transferred
+
+Command:
+```sh
+snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
+  $program_id transfer_from 1field $from_addr $to_addr 100000000u128
+```
 
 ### transfer_to_private
 
@@ -131,6 +156,12 @@ Params:
   }
   ```
 
+Command:
+```sh
+snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
+  $program_id transfer_to_private 1field $to_addr 100000000u128
+```
+
 ### transfer_to_public
 
 `transfer_to_public` is used to transfer and convert a private token record (`PrivateToken`) to public tokens.
@@ -145,6 +176,12 @@ Params:
 - `to: address`: the receiver address
 - `amount: u128`: amount of tokens to be transferred and converted
 - Output 1 PrivateToken record: it is a new PrivateToken record (owned by the caller) with an amount of `pt_in.amount - amount`.
+
+Command:
+```sh
+snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
+  $program_id transfer_to_public $private_token_record $to_addr 10000000u128
+```
 
 ### transfer_privately
 
@@ -161,6 +198,12 @@ Params:
 - `amount: u128`: amount of tokens to be transferred
 - Output 2 PrivateToken records: the first is belonging to the receiver(`to`), the second is a change belonging to the caller
 
+Command:
+```sh
+snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
+  $program_id transfer_privately $private_token_record $to_addr 50000000u128
+```
+
 ### join
 
 `join` is used to merge two `PrivateToken` records into a new `PrivateToken` record.
@@ -175,6 +218,12 @@ Params:
 - `pt1: PrivateToken`: the PrivateToken record to be spent
 - `pt2: PrivateToken`: the PrivateToken record to be spent
 - Output 1 PrivateToken record: the new record with an amount of `pt1.amount + pt2.amount`.
+
+Command:
+```sh
+snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
+  $program_id join $private_token_record_1 $private_token_record_2
+```
 
 ### create_pair
 
@@ -203,6 +252,12 @@ Params:
 - `amount_b: u128`: the amount of `token_b` to be added as the initial liquidity
 - `to: address`: the address to receive the LP tokens
 
+Command:
+```sh
+snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
+  $program_id create_pair 1field 2field 100000000u128 10000000000u128 $to_addr
+```
+
 ### add_liquidity
 
 `add_liquidity` is used to add liquidity to a pair.
@@ -230,6 +285,12 @@ Params:
 - `min_b: u128`: the min amount of `token_b` to be added
 - `to: address`: the address to receive the LP tokens
 
+Command:
+```sh
+snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
+  $program_id add_liquidity 1field 2field 100000000u128 10000000000u128 0u128 0u128 $to_addr
+```
+
 ### remove_liquidity
 
 `remove_liquidity` is used to remove liquidity from a pair.
@@ -255,6 +316,12 @@ Params:
 - `min_b: u128`: the min amount of `token_b` to be removed
 - `to: address`: the address to receive the `token_a` and `token_b` tokens
 
+Command:
+```sh
+snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
+  $program_id remove_liquidity 1field 2field 1000000000u128 0u128 0u128 $to_addr
+```
+
 ### swap_exact_tokens_for_tokens
 
 `swap_exact_tokens_for_tokens` is used to exchange a fixed amount of input token for a variable amount of output token.
@@ -278,6 +345,12 @@ Params:
 - `amount_in: u128`: the fixed amount of input token
 - `amount_out_min: u128`: the minimum amount of output token expected to receive
 - `to: address`: the address to receive the output tokens
+
+Command:
+```sh
+snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
+  $program_id swap_exact_tokens_for_tokens 1field 2field 1000000u128 98000000u128 $to_addr
+```
 
 ### swap_tokens_for_exact_tokens
 
@@ -303,6 +376,12 @@ Params:
 - `amount_out: u128`: the fixed amount of output token
 - `to: address`: the address to receive the output tokens
 
+Command:
+```sh
+snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
+  $program_id swap_tokens_for_exact_tokens 2field 1field 50000000u128 500000u128 $to_addr
+```
+
 ### token_faucet
 
 `token_faucet` is used to obtain some tokens from the token's faucet for free.
@@ -316,6 +395,12 @@ token_faucet(public token_id: field, public to: address)
 Params:
 - `token_id: field`: the id of the token
 - `to: address`: the receiver address
+
+Command:
+```sh
+snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
+  $program_id token_faucet 1field $to_addr
+```
 
 ### set_token_faucet
 

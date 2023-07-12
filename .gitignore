@@ -1,3 +1,5 @@
 outputs/
-build/
+build/*
+!build/main.aleo
 .env
+program.json

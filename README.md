@@ -4,7 +4,9 @@
 
 We are currently undergoing rapid iteration. Some of the optimizations and new features may require Aleo(snarkVM, aleo lang) to provide additional features and support before they can be implemented.
 
-Read more about the project - [Aleoswap Introduction](./Aleoswap%20introduction.md).
+Learn more about the project:
+- [Aleoswap Introduction](./introduction.md)
+- [Aleoswap Tutorial](./aleoswap-tutorial.pdf)
 
 ## TOC
 - [AleoSwap Program](#aleoswap-program)

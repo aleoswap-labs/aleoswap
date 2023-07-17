@@ -1,4 +1,6 @@
+import credits.aleo;
 program swap.aleo;
+
 
 record PrivateToken:
     owner as address.private;
@@ -33,6 +35,18 @@ struct PairKeyData:
     token_a as field;
     token_b as field;
 
+struct WrapState:
+    unwrap_count as u64;
+    total_pending_amount as u128;
+    unwrap_fee as u128;
+
+struct UnwrapItem:
+    to as address;
+    amount as u128;
+    fee as u128;
+    is_private as boolean;
+    is_pending as boolean;
+
 
 mapping balances:
 	key left as field.public;
@@ -64,6 +78,16 @@ mapping pairs:
 	value right as Pair.public;
 
 
+mapping unwraps:
+	key left as u64.public;
+	value right as UnwrapItem.public;
+
+
+mapping wrap_state:
+	key left as boolean.public;
+	value right as WrapState.public;
+
+
 
 function create_token:
     input r0 as TokenInfo.public;
@@ -75,14 +99,13 @@ function create_token:
 finalize create_token:
     input r0 as TokenInfo.public;
     input r1 as address.public;
-    cast 1field aleo1tdszx3hcgnyp2jw3y3fzvw27vremxcs24u4pys6vptg9y2jfsvps8e8ffz into r2 as GlobalState;
-    get.or_use global_state[true] r2 into r3;
-    add r3.next_token_id 1field into r4;
-    cast r4 r3.admin into r5 as GlobalState;
-    set r5 into global_state[true];
-    set r0 into tokens[r3.next_token_id];
-    cast r3.next_token_id r1 into r6 as BalanceKeyData;
-    hash.bhp256 r6 into r7 as field;    set r0.total_supply into balances[r7];
+    get global_state[true] into r2;
+    add r2.next_token_id 1field into r3;
+    cast r3 r2.admin into r4 as GlobalState;
+    set r4 into global_state[true];
+    set r0 into tokens[r2.next_token_id];
+    cast r2.next_token_id r1 into r5 as BalanceKeyData;
+    hash.bhp256 r5 into r6 as field;    set r0.total_supply into balances[r6];
 
 
 function transfer:
@@ -162,6 +185,8 @@ finalize transfer_from:
 function set_token_faucet:
     input r0 as field.public;
     input r1 as u128.public;
+    is.neq r0 0field into r2;
+    assert.eq r2 true;
 
     finalize self.caller r0 r1;
 
@@ -212,6 +237,194 @@ finalize token_faucet:
     set r10 into balances[r8];
 
 
+function wrap_private_credits:
+    input r0 as credits.aleo/credits.record;
+    input r1 as address.public;
+    input r2 as field.public;
+    input r3 as address.public;
+    gt r2 0field into r4;
+    lte r2 18446744073709551615field into r5;
+    and r4 r5 into r6;
+    assert.eq r6 true;
+    cast r2 into r7 as u64;
+    call credits.aleo/transfer_private_to_public r0 r3 r7 into r8;
+    cast r2 into r9 as u128;
+    output r8 as credits.aleo/credits.record;
+
+    finalize r1 r9 r3;
+
+finalize wrap_private_credits:
+    input r0 as address.public;
+    input r1 as u128.public;
+    input r2 as address.public;
+    get tokens[0field] into r3;
+    assert.eq r2 r3.admin;
+    add r3.total_supply r1 into r4;
+    cast r3.name r3.symbol r3.decimals r4 r3.admin into r5 as TokenInfo;
+    set r5 into tokens[0field];
+    cast 0field r0 into r6 as BalanceKeyData;
+    hash.bhp256 r6 into r7 as field;    get.or_use balances[r7] 0u128 into r8;
+    add r8 r1 into r9;
+    set r9 into balances[r7];
+
+
+function wrap_public_credits:
+    input r0 as address.public;
+    input r1 as field.public;
+    input r2 as address.public;
+    gt r1 0field into r3;
+    lte r1 18446744073709551615field into r4;
+    and r3 r4 into r5;
+    assert.eq r5 true;
+    cast r1 into r6 as u64;
+    call credits.aleo/transfer_public r2 r6;    cast r1 into r7 as u128;
+
+    finalize r0 r7 r2;
+
+finalize wrap_public_credits:
+    input r0 as address.public;
+    input r1 as u128.public;
+    input r2 as address.public;
+    get tokens[0field] into r3;
+    assert.eq r2 r3.admin;
+    add r3.total_supply r1 into r4;
+    cast r3.name r3.symbol r3.decimals r4 r3.admin into r5 as TokenInfo;
+    set r5 into tokens[0field];
+    cast 0field r0 into r6 as BalanceKeyData;
+    hash.bhp256 r6 into r7 as field;    get.or_use balances[r7] 0u128 into r8;
+    add r8 r1 into r9;
+    set r9 into balances[r7];
+
+
+function unwrap:
+    input r0 as address.public;
+    input r1 as field.public;
+    input r2 as boolean.public;
+    gt r1 0field into r3;
+    lte r1 18446744073709551615field into r4;
+    and r3 r4 into r5;
+    assert.eq r5 true;
+    cast r1 into r6 as u128;
+
+    finalize self.caller r0 r6 r2;
+
+finalize unwrap:
+    input r0 as address.public;
+    input r1 as address.public;
+    input r2 as u128.public;
+    input r3 as boolean.public;
+    get wrap_state[true] into r4;
+    gt r2 r4.unwrap_fee into r5;
+    assert.eq r5 true;
+    get tokens[0field] into r6;
+    sub r6.total_supply r2 into r7;
+    cast r6.name r6.symbol r6.decimals r7 r6.admin into r8 as TokenInfo;
+    set r8 into tokens[0field];
+    cast 0field r0 into r9 as BalanceKeyData;
+    hash.bhp256 r9 into r10 as field;    get.or_use balances[r10] 0u128 into r11;
+    sub r11 r2 into r12;
+    set r12 into balances[r10];
+    cast r1 r2 r4.unwrap_fee r3 true into r13 as UnwrapItem;
+    set r13 into unwraps[r4.unwrap_count];
+    add r4.unwrap_count 1u64 into r14;
+    add r4.total_pending_amount r2 into r15;
+    cast r14 r15 r4.unwrap_fee into r16 as WrapState;
+    set r16 into wrap_state[true];
+
+
+function handle_unwrap_to_private:
+    input r0 as u64.public;
+    input r1 as address.public;
+    input r2 as field.public;
+    cast r2 into r3 as u64;
+    call credits.aleo/transfer_public_to_private r1 r3 into r4;
+    cast r2 into r5 as u128;
+    output r4 as credits.aleo/credits.record;
+
+    finalize r0 r1 r5;
+
+finalize handle_unwrap_to_private:
+    input r0 as u64.public;
+    input r1 as address.public;
+    input r2 as u128.public;
+    get unwraps[r0] into r3;
+    assert.eq r3.to r1;
+    sub r3.amount r3.fee into r4;
+    gte r2 r4 into r5;
+    assert.eq r5 true;
+    assert.eq r3.is_private true;
+    assert.eq r3.is_pending true;
+    cast r3.to r3.amount r3.fee r3.is_private false into r6 as UnwrapItem;
+    set r6 into unwraps[r0];
+    get wrap_state[true] into r7;
+    sub r7.total_pending_amount r2 into r8;
+    cast r7.unwrap_count r8 r7.unwrap_fee into r9 as WrapState;
+    set r9 into wrap_state[true];
+
+
+function handle_unwrap_to_public:
+    input r0 as u64.public;
+    input r1 as address.public;
+    input r2 as field.public;
+    cast r2 into r3 as u64;
+    call credits.aleo/transfer_public r1 r3;    cast r2 into r4 as u128;
+
+    finalize r0 r1 r4;
+
+finalize handle_unwrap_to_public:
+    input r0 as u64.public;
+    input r1 as address.public;
+    input r2 as u128.public;
+    get unwraps[r0] into r3;
+    assert.eq r3.to r1;
+    sub r3.amount r3.fee into r4;
+    gte r2 r4 into r5;
+    assert.eq r5 true;
+    assert.eq r3.is_private false;
+    assert.eq r3.is_pending true;
+    cast r3.to r3.amount r3.fee r3.is_private false into r6 as UnwrapItem;
+    set r6 into unwraps[r0];
+    get wrap_state[true] into r7;
+    sub r7.total_pending_amount r2 into r8;
+    cast r7.unwrap_count r8 r7.unwrap_fee into r9 as WrapState;
+    set r9 into wrap_state[true];
+
+
+function set_unwrap_fee:
+    input r0 as u128.public;
+    lt r0 10000000u128 into r1;
+    assert.eq r1 true;
+
+    finalize self.caller r0;
+
+finalize set_unwrap_fee:
+    input r0 as address.public;
+    input r1 as u128.public;
+    get tokens[0field] into r2;
+    assert.eq r0 r2.admin;
+    get wrap_state[true] into r3;
+    cast r3.unwrap_count r3.total_pending_amount r1 into r4 as WrapState;
+    set r4 into wrap_state[true];
+
+
+function init:
+
+    finalize self.caller;
+
+finalize init:
+    input r0 as address.public;
+    cast 0field aleo1tdszx3hcgnyp2jw3y3fzvw27vremxcs24u4pys6vptg9y2jfsvps8e8ffz into r1 as GlobalState;
+    get.or_use global_state[true] r1 into r2;
+    assert.eq r2.next_token_id 0field;
+    assert.eq r0 r2.admin;
+    cast 1field r2.admin into r3 as GlobalState;
+    set r3 into global_state[true];
+    cast 105716693521782238488585583field 374757672271field 6u8 0u128 aleo1tdszx3hcgnyp2jw3y3fzvw27vremxcs24u4pys6vptg9y2jfsvps8e8ffz into r4 as TokenInfo;
+    set r4 into tokens[0field];
+    cast 0u64 0u128 0u128 into r5 as WrapState;
+    set r5 into wrap_state[true];
+
+
 function change_admin:
     input r0 as address.public;
 
@@ -220,11 +433,10 @@ function change_admin:
 finalize change_admin:
     input r0 as address.public;
     input r1 as address.public;
-    cast 1field aleo1tdszx3hcgnyp2jw3y3fzvw27vremxcs24u4pys6vptg9y2jfsvps8e8ffz into r2 as GlobalState;
-    get.or_use global_state[true] r2 into r3;
-    assert.eq r0 r3.admin;
-    cast r3.next_token_id r1 into r4 as GlobalState;
-    set r4 into global_state[true];
+    get global_state[true] into r2;
+    assert.eq r0 r2.admin;
+    cast r2.next_token_id r1 into r3 as GlobalState;
+    set r3 into global_state[true];
 
 
 function transfer_to_private:

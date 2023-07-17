@@ -1,6 +1,6 @@
 # AleoSwap Program
 
-AleoSwap is a decentralized exchange (DEX) built on the Aleo blockchain, utilizing the Uniswap mechanism. It leverages the unique features of the Aleo blockchain to offer enhanced privacy and new functionalities to both the DEX and its users.
+[AleoSwap](https://aleoswap.org) is a decentralized exchange (DEX) built on the Aleo blockchain, utilizing the Uniswap mechanism. It leverages the unique features of the Aleo blockchain to offer enhanced privacy and new functionalities to both the DEX and its users.
 
 We are currently undergoing rapid iteration. Some of the optimizations and new features may require Aleo(snarkVM, aleo lang) to provide additional features and support before they can be implemented.
 
@@ -20,6 +20,11 @@ We are currently undergoing rapid iteration. Some of the optimizations and new f
     - [add\_liquidity](#add_liquidity)
     - [remove\_liquidity](#remove_liquidity)
     - [swap\_exact\_tokens\_for\_tokens](#swap_exact_tokens_for_tokens)
+    - [wrap\_private\_credits](#wrap_private_credits)
+    - [wrap\_public\_credits](#wrap_public_credits)
+    - [unwrap](#unwrap)
+    - [handle\_unwrap\_to\_private](#handle_unwrap_to_private)
+    - [handle\_unwrap\_to\_public](#handle_unwrap_to_public)
     - [swap\_tokens\_for\_exact\_tokens](#swap_tokens_for_exact_tokens)
     - [token\_faucet](#token_faucet)
     - [set\_token\_faucet](#set_token_faucet)
@@ -31,6 +36,8 @@ We are currently undergoing rapid iteration. Some of the optimizations and new f
     - [faucets](#faucets)
     - [pairs](#pairs)
     - [global\_state](#global_state)
+    - [wrap\_state](#wrap_state)
+    - [unwraps](#unwraps)
 
 ## Functions
 
@@ -352,6 +359,121 @@ snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_
   $program_id swap_exact_tokens_for_tokens 1field 2field 1000000u128 98000000u128 $to_addr
 ```
 
+### wrap_private_credits
+
+`wrap_private_credits` is used to wrap private aleo credits into WALEO tokens (the token-0).
+- The wrapper function performs a `1:1` exchange between Aleo micro-credits and WALEO token.
+- In this way, we can introduce aleo credits into our DeFi world. The user can always convert WALEO tokens back into aleo credits by unwrapping.
+
+Function:
+```rust
+wrap_private_credits(
+    private input: credits.leo/credits,
+    public to: address,
+    public amount: field,
+    public holder: address
+) -> (credits.leo/credits)
+```
+
+Params:
+- `input: credits`: the aleo credits record to be wrapped
+- `to: address`: the address to receive the WALEO tokens
+- `amount: field`: amount of micro-credits to be wrapped
+- `holder: address`: the address to hold the wrapped aleo credits. It must be the admin of WALEO token (token-0) for safety.
+- Output 1 credits record: it is the change for the caller
+
+Command:
+```sh
+snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
+  $program_id wrap_private_credits $input_record $to_addr 10000000field $holder_addr
+```
+
+### wrap_public_credits
+
+`wrap_private_credits` is used to wrap public aleo credits into WALEO tokens (the token-0).
+- It is similar to the `wrap_private_credits`, except the wrapped aleo credits is public.
+
+Function:
+```rust
+transition wrap_public_credits(
+    public to: address,
+    public amount: field,
+    public holder: address
+)
+```
+
+Params:
+- `to: address`: the address to receive the WALEO tokens
+- `amount: field`: amount of micro-credits to be wrapped
+- `holder: address`: the address to hold the wrapped aleo credits. It must be the admin of WALEO token (token-0) for safety.
+
+Command:
+```sh
+snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
+  $program_id wrap_public_credits $to_addr 10000000field $holder_addr
+```
+
+### unwrap
+
+`unwrap` is used to unwrap WALEO tokens into aleo credits.
+- The unwrapped WALEO tokens will be burned, and a pending `UnwrapItem` will be created.
+
+Function:
+```rust
+unwrap(public to: address, public amount: field, public into_private: bool)
+```
+
+Params:
+- `to: address`: the address to receive aleo credits
+- `amount: field`: amount of micro-credits to be unwrapped
+- `into_private: bool`: unwrap into private or public aleo credits
+
+Command:
+```sh
+snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
+  $program_id unwrap $to_addr 10000000field true
+```
+
+### handle_unwrap_to_private
+
+`handle_unwrap_to_private` is used to handle a pending unwrap item, transferring private credits to the user.
+
+Function:
+```rust
+handle_unwrap_to_private(public index: u64, public to: address, public amount: field) -> credits.leo/credits
+```
+
+Params:
+- `index: u64`: the index of the `UnwrapItem`
+- `to: address`: the address to receive aleo credits
+- `amount: field`: amount of micro-credits to be transferred
+
+Command:
+```sh
+snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
+  $program_id handle_unwrap_to_private 0u64 $to_addr 10000000field
+```
+
+### handle_unwrap_to_public
+
+`handle_unwrap_to_public` is used to handle a pending unwrap item, transferring public credits to the user.
+
+Function:
+```rust
+handle_unwrap_to_private(public index: u64, public to: address, public amount: field) -> credits.leo/credits
+```
+
+Params:
+- `index: u64`: the index of the `UnwrapItem`
+- `to: address`: the address to receive aleo credits
+- `amount: field`: amount of micro-credits to be transferred
+
+Command:
+```sh
+snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
+  $program_id handle_unwrap_to_public 1u64 $to_addr 10000000field
+```
+
 ### swap_tokens_for_exact_tokens
 
 `swap_tokens_for_exact_tokens` is used to exchange a variable amount of input token for a fixed amount of output token.
@@ -525,4 +647,52 @@ curl $aleoRpc/testnet3/program/swap.aleo/mapping/pairs/$pair_id
 Query command:
 ```sh
 curl $aleoRpc/testnet3/program/swap.aleo/mapping/global_state/true
+```
+
+### wrap_state
+
+`wrap_state` stores the state of WALEO (Wrapped Aleo) functions.
+- mapping: `true: bool => state: WrapState`
+- `WrapState` is a structure as follows:
+
+  ```rust
+  struct WrapState {
+      // total count of unwraps
+      unwrap_count: u64,
+      // total amount of pending unwraps
+      total_pending_amount: u128,
+      // max operation fee for each unwrap
+      unwrap_fee: u128,
+  }
+  ```
+
+Query command:
+```sh
+curl $aleoRpc/testnet3/program/swap.aleo/mapping/wrap_state/true
+```
+
+### unwraps
+
+`unwraps` stores all the WALEO unwrapping history (pending or handled).
+- mapping: `index: u64 => item: UnwrapItem`
+- `UnwrapItem` is a structure as follows:
+
+  ```rust
+  struct UnwrapItem {
+    // receiver address
+    to: address,
+    // amount of aleo micro-credits
+    amount: u128,
+    // fee to the operator for handling the unwrapping
+    fee: u128,
+    // to private or public credits
+    is_private: bool,
+    // pending or handled
+    is_pending: bool,
+  }
+  ```
+
+Query command:
+```sh
+curl $aleoRpc/testnet3/program/swap.aleo/mapping/unwraps/$index
 ```

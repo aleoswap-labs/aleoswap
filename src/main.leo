@@ -1,17 +1,23 @@
+import credits.leo;
+
 // The 'AleoSwap' program.
 program swap.aleo {
-    // (token_id, owner_address) => balance
+    // BalanceKeyData => balance
     mapping balances: field => u128;
-    // (token_id, owner_address, spender_address) => amount
+    // AllowanceKeyData => amount
     mapping allowance: field => u128;
     // token_id => TokenInfo
     mapping tokens: field => TokenInfo;
-    // token_id => faucet amount 
+    // token_id => faucet amount
     mapping faucets: field => u128;
     // true => GlobalState
     mapping global_state: bool => GlobalState;
-    // (token_a, token_b) => Pair
+    // PairKeyData => Pair
     mapping pairs: field => Pair;
+    // index => UnwrapItem
+    mapping unwraps: u64 => UnwrapItem;
+    // true => WrapState
+    mapping wrap_state: bool => WrapState;
 
     record PrivateToken {
         // The token owner
@@ -31,6 +37,7 @@ program swap.aleo {
     }
 
     struct GlobalState {
+        // The id of token to be created by the next call to create_token
         next_token_id: field,
         admin: address,
     }
@@ -40,6 +47,7 @@ program swap.aleo {
         user: address,
     }
 
+    // Mapping key of allowance
     struct AllowanceKeyData {
         token: field,
         payer: address,
@@ -51,9 +59,32 @@ program swap.aleo {
         reserve_b: u128,
     }
 
+    // Mapping key of pairs
     struct PairKeyData {
         token_a: field,
         token_b: field,
+    }
+
+    struct WrapState {
+        // total count of unwraps
+        unwrap_count: u64,
+        // total amount of pending unwraps
+        total_pending_amount: u128,
+        // max operation fee for each unwrap
+        unwrap_fee: u128,
+    }
+
+    struct UnwrapItem {
+        // receiver address
+        to: address,
+        // amount of aleo micro-credits
+        amount: u128,
+        // fee to the operator for handling the unwrapping
+        fee: u128,
+        // to private or public credits
+        is_private: bool,
+        // pending or dealed
+        is_pending: bool,
     }
 
     // ========================= token =========================
@@ -66,10 +97,7 @@ program swap.aleo {
     }
 
     finalize create_token(public info: TokenInfo, public caller: address) {
-        let gs: GlobalState = Mapping::get_or_use(global_state, true, GlobalState {
-            next_token_id: 1field,
-            admin: aleo1tdszx3hcgnyp2jw3y3fzvw27vremxcs24u4pys6vptg9y2jfsvps8e8ffz,
-        });
+        let gs: GlobalState = Mapping::get(global_state, true);
         let token_id: field = gs.next_token_id;
         Mapping::set(global_state, true, GlobalState {
             next_token_id: token_id + 1field,
@@ -143,6 +171,8 @@ program swap.aleo {
     // Configure the faucet amount of the token.
     // Only the token's admin can successfully perform this operation.
     transition set_token_faucet(public token_id: field, public amount: u128) {
+        // can not set faucet for WALEO
+        assert(token_id != 0field);
         return then finalize(self.caller, token_id, amount);
     }
 
@@ -194,7 +224,226 @@ program swap.aleo {
         Mapping::set(balances, bid_to, Mapping::get_or_use(balances, bid_to, 0u128) + amount);
     }
 
+    // ========================= WALEO =========================
+
+    // Wrap private aleo credits into WALEO tokens.
+    transition wrap_private_credits(
+        private input: credits.leo/credits,
+        public to: address,
+        public amount: field,
+        public holder: address
+    ) -> (credits.leo/credits) {
+        assert(amount > 0field && amount <= 18446744073709551615field);
+        let aleo_change: credits = credits.leo/transfer_private_to_public(input, holder, amount as u64);
+        return aleo_change then finalize(to, amount as u128, holder);
+    }
+
+    finalize wrap_private_credits(public to: address, public amount: u128, public holder: address) {
+        let token_id: field = 0field;
+        let ti: TokenInfo = Mapping::get(tokens, token_id);
+        // check holder
+        assert_eq(holder, ti.admin);
+        // mint WALEO
+        Mapping::set(tokens, token_id, TokenInfo {
+            name: ti.name,
+            symbol: ti.symbol,
+            decimals: ti.decimals,
+            total_supply: ti.total_supply + amount,
+            admin: ti.admin,
+        });
+        // update balance
+        let bid : field = get_balance_id(token_id, to);
+        Mapping::set(balances, bid, Mapping::get_or_use(balances, bid, 0u128) + amount);
+    }
+
+    // Wrap public aleo credits into WALEO tokens.
+    transition wrap_public_credits(
+        public to: address,
+        public amount: field,
+        public holder: address
+    ) {
+        assert(amount > 0field && amount <= 18446744073709551615field);
+        credits.leo/transfer_public(holder, amount as u64);
+        return then finalize(to, amount as u128, holder);
+    }
+
+    finalize wrap_public_credits(public to: address, public amount: u128, public holder: address) {
+        let token_id: field = 0field;
+        let ti: TokenInfo = Mapping::get(tokens, token_id);
+        // check holder
+        assert_eq(holder, ti.admin);
+        // mint WALEO
+        Mapping::set(tokens, token_id, TokenInfo {
+            name: ti.name,
+            symbol: ti.symbol,
+            decimals: ti.decimals,
+            total_supply: ti.total_supply + amount,
+            admin: ti.admin,
+        });
+        // update balance
+        let bid : field = get_balance_id(token_id, to);
+        Mapping::set(balances, bid, Mapping::get_or_use(balances, bid, 0u128) + amount);
+    }
+
+    // Request to unwrap WALEO tokens into aleo credits.
+    // The WALEO tokens will be burned, and a pending unwrap item will be created.
+    transition unwrap(public to: address, public amount: field, public into_private: bool) {
+        assert(amount > 0field && amount <= 18446744073709551615field);
+        return then finalize(self.caller, to, amount as u128, into_private);
+    }
+
+    finalize unwrap(public caller: address, public to: address, public amount: u128, public into_private: bool) {
+        let ws: WrapState = Mapping::get(wrap_state, true);
+        assert(amount > ws.unwrap_fee);
+
+        let token_id: field = 0field;
+        let ti: TokenInfo = Mapping::get(tokens, token_id);
+        // burn WALEO
+        Mapping::set(tokens, token_id, TokenInfo {
+            name: ti.name,
+            symbol: ti.symbol,
+            decimals: ti.decimals,
+            total_supply: ti.total_supply - amount,
+            admin: ti.admin,
+        });
+        // update balance
+        let bid : field = get_balance_id(token_id, caller);
+        Mapping::set(balances, bid, Mapping::get_or_use(balances, bid, 0u128) - amount);
+
+        // add the pending item to the mapping
+        Mapping::set(unwraps, ws.unwrap_count, UnwrapItem {
+            to: to,
+            amount: amount,
+            fee: ws.unwrap_fee,
+            is_private: into_private,
+            is_pending: true,
+        });
+        // update wrap state
+        Mapping::set(wrap_state, true, WrapState {
+            unwrap_count: ws.unwrap_count + 1u64,
+            total_pending_amount: ws.total_pending_amount + amount,
+            unwrap_fee: ws.unwrap_fee,
+        });
+    }
+
+    // Handle a pending unwrap item, transfer private credits to user.
+    transition handle_unwrap_to_private(public index: u64, public to: address, public amount: field) -> credits.leo/credits {
+        let unwrapped: credits = credits.leo/transfer_public_to_private(to, amount as u64);
+        return unwrapped then finalize(index, to, amount as u128);
+    }
+
+    finalize handle_unwrap_to_private(public index: u64, public to: address, public amount: u128) {
+        // check params
+        let ui: UnwrapItem = Mapping::get(unwraps, index);
+        assert_eq(ui.to, to);
+        assert(amount >= ui.amount - ui.fee);
+        assert_eq(ui.is_private, true);
+        assert_eq(ui.is_pending, true);
+
+        // unset the pending flag
+        Mapping::set(unwraps, index, UnwrapItem {
+            to: ui.to,
+            amount: ui.amount,
+            fee: ui.fee,
+            is_private: ui.is_private,
+            is_pending: false,
+        });
+
+        // update wrap state
+        let ws: WrapState = Mapping::get(wrap_state, true);
+        Mapping::set(wrap_state, true, WrapState {
+            unwrap_count: ws.unwrap_count,
+            total_pending_amount: ws.total_pending_amount - amount,
+            unwrap_fee: ws.unwrap_fee,
+        });
+    }
+
+    // Handle a pending unwrap item, transfer public credits to user.
+    transition handle_unwrap_to_public(public index: u64, public to: address, public amount: field) {
+        credits.leo/transfer_public(to, amount as u64);
+        return then finalize(index, to, amount as u128);
+    }
+
+    finalize handle_unwrap_to_public(public index: u64, public to: address, public amount: u128) {
+        // check params
+        let ui: UnwrapItem = Mapping::get(unwraps, index);
+        assert_eq(ui.to, to);
+        assert(amount >= ui.amount - ui.fee);
+        assert_eq(ui.is_private, false);
+        assert_eq(ui.is_pending, true);
+
+        // unset the pending flag
+        Mapping::set(unwraps, index, UnwrapItem {
+            to: ui.to,
+            amount: ui.amount,
+            fee: ui.fee,
+            is_private: ui.is_private,
+            is_pending: false,
+        });
+
+        // update global unwrap state
+        let ws: WrapState = Mapping::get(wrap_state, true);
+        Mapping::set(wrap_state, true, WrapState {
+            unwrap_count: ws.unwrap_count,
+            total_pending_amount: ws.total_pending_amount - amount,
+            unwrap_fee: ws.unwrap_fee,
+        });
+    }
+
+
+    // Set unwrap fee of waleo
+    transition set_unwrap_fee(public fee: u128) {
+        assert(fee < 10000000u128);
+        return then finalize(self.caller, fee);
+    }
+
+    finalize set_unwrap_fee(public caller: address, public fee: u128) {
+        let ti: TokenInfo = Mapping::get(tokens, 0field);
+        assert_eq(caller, ti.admin);
+        let ws: WrapState = Mapping::get(wrap_state, true);
+        Mapping::set(wrap_state, true, WrapState {
+            unwrap_count: ws.unwrap_count,
+            total_pending_amount: ws.total_pending_amount,
+            unwrap_fee: fee,
+        });
+    }
+
     // ========================= admin =========================
+
+    // Initialize the program after deployment.
+    transition init() {
+        return then finalize(self.caller);
+    }
+
+    finalize init(public caller: address) {
+        // init global state
+        let gs: GlobalState = Mapping::get_or_use(global_state, true, GlobalState {
+            next_token_id: 0field,
+            admin: aleo1tdszx3hcgnyp2jw3y3fzvw27vremxcs24u4pys6vptg9y2jfsvps8e8ffz,
+        });
+        assert_eq(gs.next_token_id, 0field);
+        assert_eq(caller, gs.admin);
+        Mapping::set(global_state, true, GlobalState {
+            next_token_id: 1field,
+            admin: gs.admin,
+        });
+
+        // init WALEO token
+        Mapping::set(tokens, 0field, TokenInfo {
+            name: 105716693521782238488585583field,
+            symbol: 374757672271field,
+            decimals: 6u8,
+            total_supply: 0u128,
+            admin: aleo1tdszx3hcgnyp2jw3y3fzvw27vremxcs24u4pys6vptg9y2jfsvps8e8ffz,
+        });
+
+        // init unwrap states
+        Mapping::set(wrap_state, true, WrapState {
+            unwrap_count: 0u64,
+            total_pending_amount: 0u128,
+            unwrap_fee: 0u128,
+        });
+    }
 
     // Change the main admin of the program.
     transition change_admin(public admin: address) {
@@ -202,10 +451,7 @@ program swap.aleo {
     }
 
     finalize change_admin(public caller: address, public admin: address) {
-        let gs: GlobalState = Mapping::get_or_use(global_state, true, GlobalState {
-            next_token_id: 1field,
-            admin: aleo1tdszx3hcgnyp2jw3y3fzvw27vremxcs24u4pys6vptg9y2jfsvps8e8ffz,
-        });
+        let gs: GlobalState = Mapping::get(global_state, true);
         assert_eq(caller, gs.admin);
         Mapping::set(global_state, true, GlobalState {
             next_token_id: gs.next_token_id,
@@ -582,6 +828,7 @@ program swap.aleo {
 
     // ========================= inline =========================
 
+    // Build a key of the mapping `balances`
     inline get_balance_id(token_: field, user_: address) -> field {
         // copy to avoid compiling error
         let token: field = token_;
@@ -589,6 +836,7 @@ program swap.aleo {
         return BHP256::hash_to_field(BalanceKeyData {token, user});
     }
 
+    // Build a key of the mapping `allowance`
     inline get_allowance_id(token_id_: field, payer_: address, spender_: address) -> field {
         let token: field = token_id_;
         let payer: address = payer_;
@@ -597,6 +845,7 @@ program swap.aleo {
         return BHP256::hash_to_field(AllowanceKeyData {token, payer, spender});
     }
 
+    // Build the id of a pair
     inline get_pair_id(token_a_: field, token_b_: field) -> field {
         // copy to avoid compiling error
         let token_a: field = token_a_;
@@ -605,7 +854,7 @@ program swap.aleo {
         return  BHP256::hash_to_field(PairKeyData {token_a, token_b});
     }
 
-    // Same as Math.sol:sqrt()
+    // sqrt for u128
     inline sqrt_u128(a: u128) -> u128 {
         if (a == 0u128) {
             return 0u128;
@@ -622,6 +871,7 @@ program swap.aleo {
         return min_u128(result, a / result);
     }
 
+    // log2 for u128
     inline log2(value: u128) -> u32 {
         let result: u32 = 0u32;
         // if value >> 128u32 > 0u128 {
@@ -658,6 +908,7 @@ program swap.aleo {
         return result;
     }
 
+    // min for u128
     inline min_u128(a: u128, b: u128) -> u128 {
         return a < b ? a : b;
     }

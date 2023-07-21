@@ -1,5 +1,5 @@
 {
-  "program": "swap.aleo",
+  "program": "aleoswap03.aleo",
   "version": "0.3",
   "description": "A decentralized exchange (DEX) built on the Aleo blockchain",
   "development": {

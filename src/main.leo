@@ -1,7 +1,7 @@
 import credits.leo;
 
 // The 'AleoSwap' program.
-program swap.aleo {
+program aleoswap03.aleo {
     // BalanceKeyData => balance
     mapping balances: field => u128;
     // AllowanceKeyData => amount
@@ -411,7 +411,7 @@ program swap.aleo {
     // ========================= admin =========================
 
     // Initialize the program after deployment.
-    transition init() {
+    transition init(public b: bool) {
         return then finalize(self.caller);
     }
 

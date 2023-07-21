@@ -6,11 +6,13 @@ We are currently undergoing rapid iteration. Some of the optimizations and new f
 
 Learn more about the project:
 - [Aleoswap Introduction](./introduction.md)
-- [Aleoswap Tutorial](./aleoswap-tutorial.pdf)
+- [The Tutorial](./aleoswap-tutorial.pdf)
+- [Official Website](https://aleoswap.org)
 
 ## TOC
 - [AleoSwap Program](#aleoswap-program)
   - [TOC](#toc)
+  - [Deployment](#deployment)
   - [Functions](#functions)
     - [create\_token](#create_token)
     - [transfer](#transfer)
@@ -42,6 +44,10 @@ Learn more about the project:
     - [global\_state](#global_state)
     - [wrap\_state](#wrap_state)
     - [unwraps](#unwraps)
+
+## Deployment
+
+[aleoswap03.aleo](https://explorer.hamp.app/program?id=aleoswap03.aleo)
 
 ## Functions
 
@@ -464,7 +470,7 @@ snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_
 
 Function:
 ```rust
-handle_unwrap_to_private(public index: u64, public to: address, public amount: field) -> credits.leo/credits
+handle_unwrap_to_public(public index: u64, public to: address, public amount: field)
 ```
 
 Params:

@@ -1,5 +1,5 @@
 import credits.aleo;
-program swap.aleo;
+program aleoswap03.aleo;
 
 
 record PrivateToken:
@@ -408,6 +408,7 @@ finalize set_unwrap_fee:
 
 
 function init:
+    input r0 as boolean.public;
 
     finalize self.caller;
 

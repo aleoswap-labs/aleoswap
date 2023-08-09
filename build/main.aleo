@@ -1,5 +1,5 @@
 import credits.aleo;
-program aleoswap03.aleo;
+program swap.aleo;
 
 
 record PrivateToken:
@@ -633,6 +633,130 @@ finalize create_pair:
     set r99 into pairs[r8];
 
 
+function create_pair_privately:
+    input r0 as PrivateToken.record;
+    input r1 as PrivateToken.record;
+    input r2 as u128.public;
+    input r3 as u128.public;
+    input r4 as address.private;
+    input r5 as field.public;
+    input r6 as u128.public;
+    lt r0.token r1.token into r7;
+    assert.eq r7 true;
+    gt r2 0u128 into r8;
+    assert.eq r8 true;
+    gt r3 0u128 into r9;
+    assert.eq r9 true;
+    gt r6 0u128 into r10;
+    assert.eq r10 true;
+    sub r0.amount r2 into r11;
+    cast r0.owner r0.token r11 into r12 as PrivateToken.record;
+    sub r1.amount r3 into r13;
+    cast r1.owner r1.token r13 into r14 as PrivateToken.record;
+    cast r4 r5 r6 into r15 as PrivateToken.record;
+    output r15 as PrivateToken.record;
+    output r12 as PrivateToken.record;
+    output r14 as PrivateToken.record;
+
+    finalize r0.token r1.token r2 r3 r5 r6;
+
+finalize create_pair_privately:
+    input r0 as field.public;
+    input r1 as field.public;
+    input r2 as u128.public;
+    input r3 as u128.public;
+    input r4 as field.public;
+    input r5 as u128.public;
+    lt r0 r1 into r6;
+    assert.eq r6 true;
+    cast r0 r1 into r7 as PairKeyData;
+    hash.bhp256 r7 into r8 as field;    is.eq r4 r8 into r9;
+    assert.eq r9 true;
+    mul r2 r3 into r10;
+    is.eq r10 0u128 into r11;
+    shr r10 64u32 into r12;
+    gt r12 0u128 into r13;
+    shr r10 64u32 into r14;
+    add 0u32 64u32 into r15;
+    ternary r13 r14 r10 into r16;
+    ternary r13 r15 0u32 into r17;
+    shr r16 32u32 into r18;
+    gt r18 0u128 into r19;
+    shr r16 32u32 into r20;
+    add r17 32u32 into r21;
+    ternary r19 r20 r16 into r22;
+    ternary r19 r21 r17 into r23;
+    shr r22 16u32 into r24;
+    gt r24 0u128 into r25;
+    shr r22 16u32 into r26;
+    add r23 16u32 into r27;
+    ternary r25 r26 r22 into r28;
+    ternary r25 r27 r23 into r29;
+    shr r28 8u32 into r30;
+    gt r30 0u128 into r31;
+    shr r28 8u32 into r32;
+    add r29 8u32 into r33;
+    ternary r31 r32 r28 into r34;
+    ternary r31 r33 r29 into r35;
+    shr r34 4u32 into r36;
+    gt r36 0u128 into r37;
+    shr r34 4u32 into r38;
+    add r35 4u32 into r39;
+    ternary r37 r38 r34 into r40;
+    ternary r37 r39 r35 into r41;
+    shr r40 2u32 into r42;
+    gt r42 0u128 into r43;
+    shr r40 2u32 into r44;
+    add r41 2u32 into r45;
+    ternary r43 r44 r40 into r46;
+    ternary r43 r45 r41 into r47;
+    shr r46 1u32 into r48;
+    gt r48 0u128 into r49;
+    add r47 1u32 into r50;
+    ternary r49 r50 r47 into r51;
+    div r51 2u32 into r52;
+    shl 1u128 r52 into r53;
+    div r10 r53 into r54;
+    add r53 r54 into r55;
+    shr r55 1u32 into r56;
+    div r10 r56 into r57;
+    add r56 r57 into r58;
+    shr r58 1u32 into r59;
+    div r10 r59 into r60;
+    add r59 r60 into r61;
+    shr r61 1u32 into r62;
+    div r10 r62 into r63;
+    add r62 r63 into r64;
+    shr r64 1u32 into r65;
+    div r10 r65 into r66;
+    add r65 r66 into r67;
+    shr r67 1u32 into r68;
+    div r10 r68 into r69;
+    add r68 r69 into r70;
+    shr r70 1u32 into r71;
+    div r10 r71 into r72;
+    add r71 r72 into r73;
+    shr r73 1u32 into r74;
+    div r10 r74 into r75;
+    lt r74 r75 into r76;
+    ternary r76 r74 r75 into r77;
+    ternary r11 0u128 r77 into r78;
+    is.eq r5 r78 into r79;
+    assert.eq r79 true;
+    cast 5183377571718029925300968712562field 4281168field 6u8 0u128 aleo1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq3ljyzc into r80 as TokenInfo;
+    get.or_use tokens[r8] r80 into r81;
+    assert.eq r81.total_supply 0u128;
+    cast 0u128 0u128 into r82 as Pair;
+    get.or_use pairs[r8] r82 into r83;
+    add r81.total_supply r78 into r84;
+    cast r81.name r81.symbol r81.decimals r84 r81.admin into r85 as TokenInfo;
+    set r85 into tokens[r8];
+    add r83.reserve_a r2 into r86;
+    add r83.reserve_b r3 into r87;
+    cast r86 r87 into r88 as Pair;
+    set r88 into pairs[r8];
+
+
 function add_liquidity:
     input r0 as field.public;
     input r1 as field.public;
@@ -832,6 +956,187 @@ finalize swap_exact_tokens_for_tokens:
     set r39 into balances[r37];
 
 
+function swap_exact_private_for_public:
+    input r0 as PrivateToken.record;
+    input r1 as field.public;
+    input r2 as u128.public;
+    input r3 as u128.public;
+    input r4 as address.public;
+    is.neq r0.token r1 into r5;
+    assert.eq r5 true;
+    gt r2 0u128 into r6;
+    assert.eq r6 true;
+    sub r0.amount r2 into r7;
+    cast r0.owner r0.token r7 into r8 as PrivateToken.record;
+    output r8 as PrivateToken.record;
+
+    finalize r0.token r1 r2 r3 r4;
+
+finalize swap_exact_private_for_public:
+    input r0 as field.public;
+    input r1 as field.public;
+    input r2 as u128.public;
+    input r3 as u128.public;
+    input r4 as address.public;
+    lt r0 r1 into r5;
+    ternary r5 r0 r1 into r6;
+    lt r0 r1 into r7;
+    ternary r7 r1 r0 into r8;
+    lt r6 r8 into r9;
+    assert.eq r9 true;
+    cast r6 r8 into r10 as PairKeyData;
+    hash.bhp256 r10 into r11 as field;    get pairs[r11] into r12;
+    is.eq r6 r0 into r13;
+    ternary r13 r12.reserve_a r12.reserve_b into r14;
+    is.eq r6 r1 into r15;
+    ternary r15 r12.reserve_a r12.reserve_b into r16;
+    mul r2 997u128 into r17;
+    mul r17 r16 into r18;
+    mul r14 1000u128 into r19;
+    add r19 r17 into r20;
+    div r18 r20 into r21;
+    gte r21 r3 into r22;
+    assert.eq r22 true;
+    gt r21 0u128 into r23;
+    assert.eq r23 true;
+    add r14 r2 into r24;
+    sub r16 r21 into r25;
+    is.eq r6 r0 into r26;
+    ternary r26 r24 r25 into r27;
+    is.eq r8 r0 into r28;
+    ternary r28 r24 r25 into r29;
+    cast r27 r29 into r30 as Pair;
+    set r30 into pairs[r11];
+    cast r1 r4 into r31 as BalanceKeyData;
+    hash.bhp256 r31 into r32 as field;    get.or_use balances[r32] 0u128 into r33;
+    add r33 r21 into r34;
+    set r34 into balances[r32];
+
+
+function swap_exact_private_for_private:
+    input r0 as PrivateToken.record;
+    input r1 as field.public;
+    input r2 as u128.public;
+    input r3 as u128.public;
+    input r4 as address.private;
+    input r5 as address.public;
+    is.neq r0.token r1 into r6;
+    assert.eq r6 true;
+    gt r2 0u128 into r7;
+    assert.eq r7 true;
+    cast r4 r1 r3 into r8 as PrivateToken.record;
+    sub r0.amount r2 into r9;
+    cast r0.owner r0.token r9 into r10 as PrivateToken.record;
+    output r8 as PrivateToken.record;
+    output r10 as PrivateToken.record;
+
+    finalize r0.token r1 r2 r3 r5;
+
+finalize swap_exact_private_for_private:
+    input r0 as field.public;
+    input r1 as field.public;
+    input r2 as u128.public;
+    input r3 as u128.public;
+    input r4 as address.public;
+    lt r0 r1 into r5;
+    ternary r5 r0 r1 into r6;
+    lt r0 r1 into r7;
+    ternary r7 r1 r0 into r8;
+    lt r6 r8 into r9;
+    assert.eq r9 true;
+    cast r6 r8 into r10 as PairKeyData;
+    hash.bhp256 r10 into r11 as field;    get pairs[r11] into r12;
+    is.eq r6 r0 into r13;
+    ternary r13 r12.reserve_a r12.reserve_b into r14;
+    is.eq r6 r1 into r15;
+    ternary r15 r12.reserve_a r12.reserve_b into r16;
+    mul r2 997u128 into r17;
+    mul r17 r16 into r18;
+    mul r14 1000u128 into r19;
+    add r19 r17 into r20;
+    div r18 r20 into r21;
+    gte r21 r3 into r22;
+    assert.eq r22 true;
+    gt r21 0u128 into r23;
+    assert.eq r23 true;
+    add r14 r2 into r24;
+    sub r16 r21 into r25;
+    is.eq r6 r0 into r26;
+    ternary r26 r24 r25 into r27;
+    is.eq r8 r0 into r28;
+    ternary r28 r24 r25 into r29;
+    cast r27 r29 into r30 as Pair;
+    set r30 into pairs[r11];
+    cast r1 r4 into r31 as BalanceKeyData;
+    hash.bhp256 r31 into r32 as field;    sub r21 r3 into r33;
+    get.or_use balances[r32] 0u128 into r34;
+    add r34 r33 into r35;
+    set r35 into balances[r32];
+
+
+function swap_exact_public_for_private:
+    input r0 as field.public;
+    input r1 as field.public;
+    input r2 as u128.public;
+    input r3 as u128.public;
+    input r4 as address.private;
+    input r5 as address.public;
+    is.neq r0 r1 into r6;
+    assert.eq r6 true;
+    gt r2 0u128 into r7;
+    assert.eq r7 true;
+    cast r4 r1 r3 into r8 as PrivateToken.record;
+    output r8 as PrivateToken.record;
+
+    finalize self.caller r0 r1 r2 r3 r5;
+
+finalize swap_exact_public_for_private:
+    input r0 as address.public;
+    input r1 as field.public;
+    input r2 as field.public;
+    input r3 as u128.public;
+    input r4 as u128.public;
+    input r5 as address.public;
+    lt r1 r2 into r6;
+    ternary r6 r1 r2 into r7;
+    lt r1 r2 into r8;
+    ternary r8 r2 r1 into r9;
+    lt r7 r9 into r10;
+    assert.eq r10 true;
+    cast r7 r9 into r11 as PairKeyData;
+    hash.bhp256 r11 into r12 as field;    get pairs[r12] into r13;
+    is.eq r7 r1 into r14;
+    ternary r14 r13.reserve_a r13.reserve_b into r15;
+    is.eq r7 r2 into r16;
+    ternary r16 r13.reserve_a r13.reserve_b into r17;
+    mul r3 997u128 into r18;
+    mul r18 r17 into r19;
+    mul r15 1000u128 into r20;
+    add r20 r18 into r21;
+    div r19 r21 into r22;
+    gte r22 r4 into r23;
+    assert.eq r23 true;
+    gt r22 0u128 into r24;
+    assert.eq r24 true;
+    cast r1 r0 into r25 as BalanceKeyData;
+    hash.bhp256 r25 into r26 as field;    get balances[r26] into r27;
+    sub r27 r3 into r28;
+    set r28 into balances[r26];
+    add r15 r3 into r29;
+    sub r17 r22 into r30;
+    is.eq r7 r1 into r31;
+    ternary r31 r29 r30 into r32;
+    is.eq r9 r1 into r33;
+    ternary r33 r29 r30 into r34;
+    cast r32 r34 into r35 as Pair;
+    set r35 into pairs[r12];
+    cast r2 r5 into r36 as BalanceKeyData;
+    hash.bhp256 r36 into r37 as field;    sub r22 r4 into r38;
+    get.or_use balances[r37] 0u128 into r39;
+    add r39 r38 into r40;
+    set r40 into balances[r37];
+
+
 function swap_tokens_for_exact_tokens:
     input r0 as field.public;
     input r1 as field.public;
@@ -890,3 +1195,187 @@ finalize swap_tokens_for_exact_tokens:
     hash.bhp256 r37 into r38 as field;    get.or_use balances[r38] 0u128 into r39;
     add r39 r4 into r40;
     set r40 into balances[r38];
+
+
+function swap_private_for_exact_public:
+    input r0 as PrivateToken.record;
+    input r1 as field.public;
+    input r2 as u128.public;
+    input r3 as u128.public;
+    input r4 as address.public;
+    input r5 as address.public;
+    is.neq r0.token r1 into r6;
+    assert.eq r6 true;
+    gt r3 0u128 into r7;
+    assert.eq r7 true;
+    sub r0.amount r2 into r8;
+    cast r0.owner r0.token r8 into r9 as PrivateToken.record;
+    output r9 as PrivateToken.record;
+
+    finalize r0.token r1 r2 r3 r4 r5;
+
+finalize swap_private_for_exact_public:
+    input r0 as field.public;
+    input r1 as field.public;
+    input r2 as u128.public;
+    input r3 as u128.public;
+    input r4 as address.public;
+    input r5 as address.public;
+    lt r0 r1 into r6;
+    ternary r6 r0 r1 into r7;
+    lt r0 r1 into r8;
+    ternary r8 r1 r0 into r9;
+    lt r7 r9 into r10;
+    assert.eq r10 true;
+    cast r7 r9 into r11 as PairKeyData;
+    hash.bhp256 r11 into r12 as field;    get pairs[r12] into r13;
+    is.eq r7 r0 into r14;
+    ternary r14 r13.reserve_a r13.reserve_b into r15;
+    is.eq r7 r1 into r16;
+    ternary r16 r13.reserve_a r13.reserve_b into r17;
+    mul r15 r3 into r18;
+    mul r18 1000u128 into r19;
+    sub r17 r3 into r20;
+    mul r20 997u128 into r21;
+    div r19 r21 into r22;
+    add r22 1u128 into r23;
+    lte r23 r2 into r24;
+    assert.eq r24 true;
+    gt r23 0u128 into r25;
+    assert.eq r25 true;
+    cast r0 r5 into r26 as BalanceKeyData;
+    hash.bhp256 r26 into r27 as field;    sub r2 r23 into r28;
+    get.or_use balances[r27] 0u128 into r29;
+    add r29 r28 into r30;
+    set r30 into balances[r27];
+    add r15 r23 into r31;
+    sub r17 r3 into r32;
+    is.eq r7 r0 into r33;
+    ternary r33 r31 r32 into r34;
+    is.eq r9 r0 into r35;
+    ternary r35 r31 r32 into r36;
+    cast r34 r36 into r37 as Pair;
+    set r37 into pairs[r12];
+    cast r1 r4 into r38 as BalanceKeyData;
+    hash.bhp256 r38 into r39 as field;    get.or_use balances[r39] 0u128 into r40;
+    add r40 r3 into r41;
+    set r41 into balances[r39];
+
+
+function swap_private_for_exact_private:
+    input r0 as PrivateToken.record;
+    input r1 as field.public;
+    input r2 as u128.public;
+    input r3 as u128.public;
+    input r4 as address.private;
+    input r5 as address.public;
+    is.neq r0.token r1 into r6;
+    assert.eq r6 true;
+    gt r3 0u128 into r7;
+    assert.eq r7 true;
+    cast r4 r1 r3 into r8 as PrivateToken.record;
+    sub r0.amount r2 into r9;
+    cast r0.owner r0.token r9 into r10 as PrivateToken.record;
+    output r8 as PrivateToken.record;
+    output r10 as PrivateToken.record;
+
+    finalize r0.token r1 r2 r3 r5;
+
+finalize swap_private_for_exact_private:
+    input r0 as field.public;
+    input r1 as field.public;
+    input r2 as u128.public;
+    input r3 as u128.public;
+    input r4 as address.public;
+    lt r0 r1 into r5;
+    ternary r5 r0 r1 into r6;
+    lt r0 r1 into r7;
+    ternary r7 r1 r0 into r8;
+    lt r6 r8 into r9;
+    assert.eq r9 true;
+    cast r6 r8 into r10 as PairKeyData;
+    hash.bhp256 r10 into r11 as field;    get pairs[r11] into r12;
+    is.eq r6 r0 into r13;
+    ternary r13 r12.reserve_a r12.reserve_b into r14;
+    is.eq r6 r1 into r15;
+    ternary r15 r12.reserve_a r12.reserve_b into r16;
+    mul r14 r3 into r17;
+    mul r17 1000u128 into r18;
+    sub r16 r3 into r19;
+    mul r19 997u128 into r20;
+    div r18 r20 into r21;
+    add r21 1u128 into r22;
+    lte r22 r2 into r23;
+    assert.eq r23 true;
+    gt r22 0u128 into r24;
+    assert.eq r24 true;
+    cast r0 r4 into r25 as BalanceKeyData;
+    hash.bhp256 r25 into r26 as field;    sub r2 r22 into r27;
+    get.or_use balances[r26] 0u128 into r28;
+    add r28 r27 into r29;
+    set r29 into balances[r26];
+    add r14 r22 into r30;
+    sub r16 r3 into r31;
+    is.eq r6 r0 into r32;
+    ternary r32 r30 r31 into r33;
+    is.eq r8 r0 into r34;
+    ternary r34 r30 r31 into r35;
+    cast r33 r35 into r36 as Pair;
+    set r36 into pairs[r11];
+
+
+function swap_public_for_exact_private:
+    input r0 as field.public;
+    input r1 as field.public;
+    input r2 as u128.public;
+    input r3 as u128.public;
+    input r4 as address.private;
+    is.neq r0 r1 into r5;
+    assert.eq r5 true;
+    gt r3 0u128 into r6;
+    assert.eq r6 true;
+    cast r4 r1 r3 into r7 as PrivateToken.record;
+    output r7 as PrivateToken.record;
+
+    finalize self.caller r0 r1 r2 r3;
+
+finalize swap_public_for_exact_private:
+    input r0 as address.public;
+    input r1 as field.public;
+    input r2 as field.public;
+    input r3 as u128.public;
+    input r4 as u128.public;
+    lt r1 r2 into r5;
+    ternary r5 r1 r2 into r6;
+    lt r1 r2 into r7;
+    ternary r7 r2 r1 into r8;
+    lt r6 r8 into r9;
+    assert.eq r9 true;
+    cast r6 r8 into r10 as PairKeyData;
+    hash.bhp256 r10 into r11 as field;    get pairs[r11] into r12;
+    is.eq r6 r1 into r13;
+    ternary r13 r12.reserve_a r12.reserve_b into r14;
+    is.eq r6 r2 into r15;
+    ternary r15 r12.reserve_a r12.reserve_b into r16;
+    mul r14 r4 into r17;
+    mul r17 1000u128 into r18;
+    sub r16 r4 into r19;
+    mul r19 997u128 into r20;
+    div r18 r20 into r21;
+    add r21 1u128 into r22;
+    lte r22 r3 into r23;
+    assert.eq r23 true;
+    gt r22 0u128 into r24;
+    assert.eq r24 true;
+    cast r1 r0 into r25 as BalanceKeyData;
+    hash.bhp256 r25 into r26 as field;    get balances[r26] into r27;
+    sub r27 r22 into r28;
+    set r28 into balances[r26];
+    add r14 r22 into r29;
+    sub r16 r4 into r30;
+    is.eq r6 r1 into r31;
+    ternary r31 r29 r30 into r32;
+    is.eq r8 r1 into r33;
+    ternary r33 r29 r30 into r34;
+    cast r32 r34 into r35 as Pair;
+    set r35 into pairs[r11];

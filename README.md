@@ -5,9 +5,9 @@
 We are currently undergoing rapid iteration. Some of the optimizations and new features may require Aleo(snarkVM, aleo lang) to provide additional features and support before they can be implemented.
 
 Learn more about the project:
-- [Aleoswap Introduction](./introduction.md)
-- [The Tutorial](./aleoswap-tutorial.pdf)
 - [Official Website](https://aleoswap.org)
+- [Aleoswap Introduction](./introduction.md)
+- [Aleoswap Tutorial](./aleoswap-tutorial.pdf)
 
 ## TOC
 - [AleoSwap Program](#aleoswap-program)
@@ -25,13 +25,19 @@ Learn more about the project:
     - [create\_pair](#create_pair)
     - [add\_liquidity](#add_liquidity)
     - [remove\_liquidity](#remove_liquidity)
-    - [swap\_exact\_tokens\_for\_tokens](#swap_exact_tokens_for_tokens)
     - [wrap\_private\_credits](#wrap_private_credits)
     - [wrap\_public\_credits](#wrap_public_credits)
     - [unwrap](#unwrap)
     - [handle\_unwrap\_to\_private](#handle_unwrap_to_private)
     - [handle\_unwrap\_to\_public](#handle_unwrap_to_public)
+    - [swap\_exact\_tokens\_for\_tokens](#swap_exact_tokens_for_tokens)
+    - [swap\_exact\_private\_for\_public](#swap_exact_private_for_public)
+    - [swap\_exact\_private\_for\_private](#swap_exact_private_for_private)
+    - [swap\_exact\_public\_for\_private](#swap_exact_public_for_private)
     - [swap\_tokens\_for\_exact\_tokens](#swap_tokens_for_exact_tokens)
+    - [swap\_private\_for\_exact\_public](#swap_private_for_exact_public)
+    - [swap\_private\_for\_exact\_private](#swap_private_for_exact_private)
+    - [swap\_public\_for\_exact\_private](#swap_public_for_exact_private)
     - [token\_faucet](#token_faucet)
     - [set\_token\_faucet](#set_token_faucet)
     - [change\_token\_admin](#change_token_admin)
@@ -47,7 +53,7 @@ Learn more about the project:
 
 ## Deployment
 
-[aleoswap03.aleo](https://explorer.hamp.app/program?id=aleoswap03.aleo)
+[aleoswap04.aleo](https://explorer.hamp.app/program?id=aleoswap04.aleo)
 
 ## Functions
 
@@ -213,7 +219,7 @@ Params:
 - `pt_in: PrivateToken`: the PrivateToken record to be spent
 - `to: address`: the receiver address
 - `amount: u128`: amount of tokens to be transferred
-- Output 2 PrivateToken records: the first is belonging to the receiver(`to`), the second is a change belonging to the caller
+- Output 2 PrivateToken records: the first belongs to the receiver(`to`), the second is a change belonging to the caller
 
 Command:
 ```sh
@@ -339,36 +345,6 @@ snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_
   $program_id remove_liquidity 1field 2field 1000000000u128 0u128 0u128 $to_addr
 ```
 
-### swap_exact_tokens_for_tokens
-
-`swap_exact_tokens_for_tokens` is used to exchange a fixed amount of input token for a variable amount of output token.
-- Slippage can be adjusted through the parameters.
-- Each swap call will charge a fee of `0.3%`.
-
-Function:
-```rust
-swap_exact_tokens_for_tokens(
-    public token_in: field,
-    public token_out: field,
-    public amount_in: u128,
-    public amount_out_min: u128,
-    public to: address,
-)
-```
-
-Params:
-- `token_in: field`: the input token id
-- `token_out: field`: the output token id
-- `amount_in: u128`: the fixed amount of input token
-- `amount_out_min: u128`: the minimum amount of output token expected to receive
-- `to: address`: the address to receive the output tokens
-
-Command:
-```sh
-snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
-  $program_id swap_exact_tokens_for_tokens 1field 2field 1000000u128 98000000u128 $to_addr
-```
-
 ### wrap_private_credits
 
 `wrap_private_credits` is used to wrap private aleo credits into WALEO tokens (the token-0).
@@ -484,9 +460,118 @@ snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_
   $program_id handle_unwrap_to_public 1u64 $to_addr 10000000field
 ```
 
+### swap_exact_tokens_for_tokens
+
+`swap_exact_tokens_for_tokens` is used to exchange a fixed amount of input tokens for a variable amount of output tokens.
+- Slippage can be adjusted through the parameters.
+- Each swap call will charge a fee of `0.3%`.
+
+Function:
+```rust
+swap_exact_tokens_for_tokens(
+    public token_in: field,
+    public token_out: field,
+    public amount_in: u128,
+    public amount_out_min: u128,
+    public to: address,
+)
+```
+
+Params:
+- `token_in: field`: the input token id
+- `token_out: field`: the output token id
+- `amount_in: u128`: the fixed amount of input token
+- `amount_out_min: u128`: the minimum amount of output token expected to receive
+- `to: address`: the address to receive the output tokens
+
+Command:
+```sh
+snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
+  $program_id swap_exact_tokens_for_tokens 1field 2field 1000000u128 98000000u128 $to_addr
+```
+
+### swap_exact_private_for_public
+
+`swap_exact_private_for_public` is used to exchange a fixed amount of private input tokens for a variable amount of public output tokens.
+- Slippage can be adjusted through the parameters.
+- Each swap call will charge a fee of `0.3%`.
+
+Function:
+```rust
+swap_exact_private_for_public(
+    private pt_in: PrivateToken,
+    public token_out: field,
+    public amount_in: u128,
+    public amount_out_min: u128,
+    public to: address,
+) -> (PrivateToken)
+```
+
+Params:
+- `pt_in: PrivateToken`: the PrivateToken record to be spent
+- `token_out: field`: the output token id
+- `amount_in: u128`: the fixed amount of input token
+- `amount_out_min: u128`: the minimum amount of output token expected to receive
+- `to: address`: the address to receive the output tokens
+- Output 1 `PrivateToken` record: it is a new PrivateToken record (owned by the caller) with an amount of `pt_in.amount - amount_in`.
+
+### swap_exact_private_for_private
+
+`swap_exact_private_for_private` is used to exchange a fixed amount of private input tokens for a variable amount of private output tokens.
+- Slippage can be adjusted through the parameters.
+- Each swap call will charge a fee of `0.3%`.
+
+Function:
+```rust
+swap_exact_private_for_private(
+    private pt_in: PrivateToken,
+    public token_out: field,
+    public amount_in: u128,
+    public amount_out_min: u128,
+    private to_pri: address,
+    public to_pub: address,
+) -> (PrivateToken, PrivateToken)
+```
+
+Params:
+- `pt_in: PrivateToken`: the PrivateToken record to be spent
+- `token_out: field`: the output token id
+- `amount_in: u128`: the fixed amount of input token
+- `amount_out_min: u128`: the minimum amount of output token expected to receive
+- `to_pri: address`: the address to receive `amount_out_min` of output tokens privately
+- `to_pub: address`: the address to receive the remaining output tokens publicly
+- Output 2 `PrivateToken` records: the first belongs to the receiver(`to_pri`), the second is a change and belongs to the caller
+
+### swap_exact_public_for_private
+
+`swap_exact_public_for_private` is used to exchange a fixed amount of public input tokens for a variable amount of private output tokens.
+- Slippage can be adjusted through the parameters.
+- Each swap call will charge a fee of `0.3%`.
+
+Function:
+```rust
+swap_exact_public_for_private(
+    public token_in: field,
+    public token_out: field,
+    public amount_in: u128,
+    public amount_out_min: u128,
+    private to_pri: address,
+    public to_pub: address,
+) -> (PrivateToken) {
+```
+
+Params:
+- `token_in: field`: the input token id
+- `token_out: field`: the output token id
+- `amount_in: u128`: the fixed amount of input token
+- `amount_out_min: u128`: the minimum amount of output token expected to receive
+- `to_pri: address`: the address to receive `amount_out_min` of output tokens privately
+- `to_pub: address`: the address to receive the remaining output tokens publicly
+- Output 1 `PrivateToken` records: it is a new PrivateToken record (owned by `to_pri`) with an amount of `amount_out_min`.
+
 ### swap_tokens_for_exact_tokens
 
-`swap_tokens_for_exact_tokens` is used to exchange a variable amount of input token for a fixed amount of output token.
+`swap_tokens_for_exact_tokens` is used to exchange a variable amounts of input token for a fixed amount of output tokens.
 - Slippage can be adjusted through the parameters.
 - Each swap call will charge a fee of `0.3%`.
 
@@ -513,6 +598,86 @@ Command:
 snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
   $program_id swap_tokens_for_exact_tokens 2field 1field 50000000u128 500000u128 $to_addr
 ```
+
+### swap_private_for_exact_public
+
+`swap_private_for_exact_public` is used to exchange a variable amount of private input tokens for a fixed amount of public output tokens.
+- Slippage can be adjusted through the parameters.
+- Each swap call will charge a fee of `0.3%`.
+
+Function:
+```rust
+swap_private_for_exact_public(
+    private pt_in: PrivateToken,
+    public token_out: field,
+    public amount_in_max: u128,
+    public amount_out: u128,
+    public to: address,
+    public refund_to: address,
+) -> (PrivateToken)
+```
+
+Params:
+- `pt_in: PrivateToken`: the PrivateToken record to be spent, with an amount greater than or equal to `amount_in_max`
+- `token_out: field`: the output token id
+- `amount_in_max: u128`: the maximum amount of input token originally intended to be spent
+- `amount_out: u128`: the fixed amount of output token
+- `to: address`: the address to receive the public output tokens
+- `refund_to: address`: the address to receive the refunded input token publicly
+- Output 1 `PrivateToken` records: it is a new PrivateToken record (owned by the caller) with an amount of `pt_in.amount - amount_in_max`.
+
+### swap_private_for_exact_private
+
+`swap_private_for_exact_private` is used to exchange a variable amount of private input tokens for a fixed amount of private output tokens.
+- Slippage can be adjusted through the parameters.
+- Each swap call will charge a fee of `0.3%`.
+
+Function:
+```rust
+swap_private_for_exact_private(
+    private pt_in: PrivateToken,
+    public token_out: field,
+    public amount_in_max: u128,
+    public amount_out: u128,
+    private to_pri: address,
+    public refund_to: address,
+) -> (PrivateToken, PrivateToken)
+```
+
+Params:
+- `pt_in: PrivateToken`: the PrivateToken record to be spent, with an amount greater than or equal to `amount_in_max`
+- `token_out: field`: the output token id
+- `amount_in_max: u128`: the maximum amount of input token originally intended to be spent
+- `amount_out: u128`: the fixed amount of output token
+- `to_pri: address`: the address to receive the private output tokens
+- `refund_to: address`: the address to receive the refunded input token publicly
+- Output 2 `PrivateToken` records: the first belongs to the receiver(`to_pri`), the second is a change and belongs to the caller
+
+### swap_public_for_exact_private
+
+`swap_public_for_exact_private` is used to exchange a variable amount of public input tokens for a fixed amount of private output tokens.
+- Slippage can be adjusted through the parameters.
+- Each swap call will charge a fee of `0.3%`.
+
+Function:
+```rust
+swap_public_for_exact_private(
+    public token_in: field,
+    public token_out: field,
+    public amount_in_max: u128,
+    public amount_out: u128,
+    private to_pri: address,
+) -> (PrivateToken){
+```
+
+Params:
+- `token_out: field`: the input token id
+- `token_out: field`: the output token id
+- `amount_in_max: u128`: the maximum amount of input token originally intended to be spent
+- `amount_out: u128`: the fixed amount of output token
+- `to_pri: address`: the address to receive the private output tokens
+- Output 1 `PrivateToken` records: the first belongs to the receiver(`to_pri`), the second is a change and belongs to the caller
+- Output 1 `PrivateToken` records: it is a new PrivateToken record (owned by `to_pri`) with an amount of `amount_out`.
 
 ### token_faucet
 

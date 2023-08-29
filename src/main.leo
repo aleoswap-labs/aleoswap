@@ -1,7 +1,7 @@
 import credits.leo;
 
 // The 'AleoSwap' program.
-program swap.aleo {
+program aleoswap05.aleo {
     // BalanceKeyData => balance
     mapping balances: field => u128;
     // AllowanceKeyData => amount
@@ -605,7 +605,6 @@ program swap.aleo {
         public amount_a: u128,
         public amount_b: u128,
         private to: address,
-        public pair_id: field,
         public liquidity: u128,
      ) -> (PrivateToken, PrivateToken, PrivateToken) {
         let token_a: field = pt_a.token;
@@ -625,14 +624,13 @@ program swap.aleo {
             amount: pt_b.amount - amount_b,
         };
 
-        // let pid: field = get_pair_id(token_a, token_b);
-        // let liquidity: u128 = sqrt_u128(amount_a * amount_b);
+        let pid: field = get_pair_id(token_a, token_b);
         let pt_lp: PrivateToken = PrivateToken {
             owner: to,
-            token: pair_id,
+            token: pid,
             amount: liquidity,
         };
-        return (pt_lp, change_a, change_b) then finalize(token_a, token_b, amount_a, amount_b, pair_id, liquidity);
+        return (pt_lp, change_a, change_b) then finalize(token_a, token_b, amount_a, amount_b, pid, liquidity);
     }
 
     finalize create_pair_privately(
@@ -640,11 +638,9 @@ program swap.aleo {
         public token_b: field,
         public amount_a: u128,
         public amount_b: u128,
-        public pid_in: field,
+        public pid: field,
         public liquidity_in: u128,
     ) {
-        let pid: field = get_pair_id(token_a, token_b);
-        assert(pid_in == pid);
         let liquidity: u128 = sqrt_u128(amount_a * amount_b);
         assert(liquidity_in == liquidity);
 
@@ -745,6 +741,100 @@ program swap.aleo {
         });
     }
 
+    // Add liquidity to a pair privately.
+    transition add_liquidity_privately(
+        private pt_a: PrivateToken,
+        private pt_b: PrivateToken,
+        public amount_a: u128,
+        public amount_b: u128,
+        public min_a: u128,
+        public min_b: u128,
+        public min_liquidity: u128,
+        private to: address,
+        public refund_to: address,
+     ) -> (PrivateToken, PrivateToken, PrivateToken) {
+        let token_a: field = pt_a.token;
+        let token_b: field = pt_b.token;
+        assert(token_a < token_b);
+        assert(amount_a > 0u128 && amount_a >= min_a);
+        assert(amount_b > 0u128 && amount_b >= min_b);
+        assert(min_liquidity > 0u128);
+
+        // change
+        let change_a: PrivateToken = PrivateToken {
+            owner: pt_a.owner,
+            token: token_a,
+            amount: pt_a.amount - amount_a,
+        };
+        let change_b: PrivateToken = PrivateToken {
+            owner: pt_b.owner,
+            token: token_b,
+            amount: pt_b.amount - amount_b,
+        };
+
+        // mint lp token
+        let pid: field = get_pair_id(token_a, token_b);
+        let pt_lp: PrivateToken = PrivateToken {
+            owner: to,
+            token: pid,
+            amount: min_liquidity,
+        };
+
+        return (pt_lp, change_a, change_b) then finalize(token_a, token_b, pid, amount_a, amount_b, min_a, min_b, min_liquidity, refund_to);
+    }
+
+    finalize add_liquidity_privately(
+        public token_a: field,
+        public token_b: field,
+        public pid: field,
+        public amount_a: u128,
+        public amount_b: u128,
+        public min_a: u128,
+        public min_b: u128,
+        public min_liquidity: u128,
+        public refund_to: address,
+    ) {
+        let pair: Pair = Mapping::get(pairs, pid);
+        let ti_pair: TokenInfo = Mapping::get(tokens, pid);
+        let liq_a: u128 = amount_a * ti_pair.total_supply / pair.reserve_a;
+        let liq_b: u128 = amount_b * ti_pair.total_supply / pair.reserve_b;
+        let liquidity: u128 = liq_a <= liq_b ? liq_a : liq_b;
+        let amount_a_used: u128 = liq_a <= liquidity
+                ? amount_a
+                : (liquidity * pair.reserve_a + ti_pair.total_supply - 1u128) / ti_pair.total_supply;
+        let amount_b_used: u128 = liq_b <= liquidity
+                ? amount_b
+                : (liquidity * pair.reserve_b + ti_pair.total_supply - 1u128) / ti_pair.total_supply;
+        assert(liquidity >= min_liquidity);
+        assert(amount_a >= amount_a_used && amount_a_used >= min_a);
+        assert(amount_b >= amount_b_used && amount_b_used >= min_b);
+
+        // refund tokens
+        let bid_a: field = get_balance_id(token_a, refund_to);
+        Mapping::set(balances, bid_a, Mapping::get_or_use(balances, bid_a, 0u128) + amount_a - amount_a_used);
+        let bid_b: field = get_balance_id(token_b, refund_to);
+        Mapping::set(balances, bid_b, Mapping::get_or_use(balances, bid_b, 0u128) + amount_b - amount_b_used);
+
+        // refund liquidity
+        let bid_p: field = get_balance_id(pid, refund_to);
+        Mapping::set(balances, bid_p, Mapping::get_or_use(balances, bid_p, 0u128) + liquidity - min_liquidity);
+
+        // set liquidity supply
+        Mapping::set(tokens, pid, TokenInfo {
+            name: ti_pair.name,
+            symbol: ti_pair.symbol,
+            decimals: ti_pair.decimals,
+            total_supply: ti_pair.total_supply + liquidity,
+            admin: ti_pair.admin,
+        });
+
+        // update pair
+        Mapping::set(pairs, pid, Pair {
+            reserve_a: pair.reserve_a + amount_a_used,
+            reserve_b: pair.reserve_b + amount_b_used,
+        });
+    }
+
     // Remove liquidity from a pair.
     // The caller's LP tokens will be burned, `token_a` and `token_b` will be transferred to the `to` address.
     transition remove_liquidity(
@@ -801,6 +891,85 @@ program swap.aleo {
         let bid_b: field = get_balance_id(token_b, to);
         Mapping::set(balances, bid_a, Mapping::get_or_use(balances, bid_a, 0u128) + amount_a);
         Mapping::set(balances, bid_b, Mapping::get_or_use(balances, bid_b, 0u128) + amount_b);
+    }
+
+    // Remove liquidity from a pair.
+    transition remove_liquidity_privately(
+        public token_a: field,
+        public token_b: field,
+        private pt_lp: PrivateToken,
+        public liquidity: u128,
+        public min_a: u128,
+        public min_b: u128,
+        private to: address,
+        public refund_to: address,
+     ) -> (PrivateToken, PrivateToken, PrivateToken) {
+        assert(token_a < token_b);
+        assert(liquidity > 0u128);
+        let pid: field = get_pair_id(token_a, token_b);
+        // check pair id and lp token
+        assert_eq(pid, pt_lp.token);
+
+        // mint tokens
+        let pt_a: PrivateToken = PrivateToken {
+            owner: to,
+            token: token_a,
+            amount: min_a,
+        };
+        let pt_b: PrivateToken = PrivateToken {
+            owner: to,
+            token: token_b,
+            amount: min_b,
+        };
+
+        // change
+        let change_lp: PrivateToken = PrivateToken {
+            owner: pt_lp.owner,
+            token: pid,
+            amount: pt_lp.amount - liquidity,
+        };
+
+        return (pt_a, pt_b, change_lp) then finalize(token_a, token_b, pid, liquidity, min_a, min_b, refund_to);
+    }
+
+    finalize remove_liquidity_privately(
+        public token_a: field,
+        public token_b: field,
+        public pid: field,
+        public liquidity: u128,
+        public min_a: u128,
+        public min_b: u128,
+        public refund_to: address,
+    ) {
+        let ti_pair: TokenInfo = Mapping::get(tokens, pid);
+        let pair: Pair = Mapping::get(pairs, pid);
+
+        // calculate token amounts
+        let amount_a: u128 = liquidity * pair.reserve_a / ti_pair.total_supply;
+        let amount_b: u128 = liquidity * pair.reserve_b / ti_pair.total_supply;
+        assert(amount_a >= min_a && amount_b >= min_b);
+        assert(amount_a > 0u128 || amount_b > 0u128);
+
+        // liquidity has been burned privately
+
+        // update pair
+        Mapping::set(tokens, pid, TokenInfo {
+            name: ti_pair.name,
+            symbol: ti_pair.symbol,
+            decimals: ti_pair.decimals,
+            total_supply: ti_pair.total_supply - liquidity,
+            admin: ti_pair.admin,
+        });
+        Mapping::set(pairs, pid, Pair {
+            reserve_a: pair.reserve_a - amount_a,
+            reserve_b: pair.reserve_b - amount_b,
+        });
+
+        // refund tokens
+        let bid_a: field = get_balance_id(token_a, refund_to);
+        let bid_b: field = get_balance_id(token_b, refund_to);
+        Mapping::set(balances, bid_a, Mapping::get_or_use(balances, bid_a, 0u128) + amount_a - min_a);
+        Mapping::set(balances, bid_b, Mapping::get_or_use(balances, bid_b, 0u128) + amount_b - min_b);
     }
 
     // ========================= swap exact =========================
@@ -919,7 +1088,7 @@ program swap.aleo {
         public amount_out_min: u128,
         private to_pri: address,
         public to_pub: address,
-     ) -> (PrivateToken, PrivateToken){
+     ) -> (PrivateToken, PrivateToken) {
         let token_in: field = pt_in.token;
         assert(token_in != token_out);
         assert(amount_in > 0u128);
@@ -972,64 +1141,64 @@ program swap.aleo {
         Mapping::set(balances, bid_out, Mapping::get_or_use(balances, bid_out, 0u128) + amount_out_diff);
     }
 
-    // Exchange a fixed amount of public input tokens for a variable amount of private output tokens.
-    transition swap_exact_public_for_private(
-        public token_in: field,
-        public token_out: field,
-        public amount_in: u128,
-        public amount_out_min: u128,
-        private to_pri: address,
-        public to_pub: address,
-     ) -> (PrivateToken) {
-        assert(token_in != token_out);
-        assert(amount_in > 0u128);
+    // // Exchange a fixed amount of public input tokens for a variable amount of private output tokens.
+    // transition swap_exact_public_for_private(
+    //     public token_in: field,
+    //     public token_out: field,
+    //     public amount_in: u128,
+    //     public amount_out_min: u128,
+    //     private to_pri: address,
+    //     public to_pub: address,
+    //  ) -> (PrivateToken) {
+    //     assert(token_in != token_out);
+    //     assert(amount_in > 0u128);
 
-        let pt_out: PrivateToken = PrivateToken {
-            owner: to_pri,
-            token: token_out,
-            amount: amount_out_min,
-        };
-        return pt_out then finalize(self.caller, token_in, token_out, amount_in, amount_out_min, to_pub);
-    }
+    //     let pt_out: PrivateToken = PrivateToken {
+    //         owner: to_pri,
+    //         token: token_out,
+    //         amount: amount_out_min,
+    //     };
+    //     return pt_out then finalize(self.caller, token_in, token_out, amount_in, amount_out_min, to_pub);
+    // }
 
-    finalize swap_exact_public_for_private(
-        public caller: address,
-        public token_in: field,
-        public token_out: field,
-        public amount_in: u128,
-        public amount_out_min: u128,
-        public to_pub: address,
-    ) {
-        let token_a: field = token_in < token_out ? token_in : token_out;
-        let token_b: field = token_in < token_out ? token_out : token_in;
-        let pid: field = get_pair_id(token_a, token_b);
-        let pair: Pair = Mapping::get(pairs, pid);
+    // finalize swap_exact_public_for_private(
+    //     public caller: address,
+    //     public token_in: field,
+    //     public token_out: field,
+    //     public amount_in: u128,
+    //     public amount_out_min: u128,
+    //     public to_pub: address,
+    // ) {
+    //     let token_a: field = token_in < token_out ? token_in : token_out;
+    //     let token_b: field = token_in < token_out ? token_out : token_in;
+    //     let pid: field = get_pair_id(token_a, token_b);
+    //     let pair: Pair = Mapping::get(pairs, pid);
 
-        // calculate output amount
-        let reserve_in: u128 = token_a == token_in ? pair.reserve_a : pair.reserve_b;
-        let reserve_out: u128 = token_a == token_out ? pair.reserve_a : pair.reserve_b;
-        let amount_in_with_fee: u128 = amount_in * 997u128;
-        let amount_out: u128 = amount_in_with_fee * reserve_out / (reserve_in * 1000u128 + amount_in_with_fee);
-        assert(amount_out >= amount_out_min);
-        assert(amount_out > 0u128);
+    //     // calculate output amount
+    //     let reserve_in: u128 = token_a == token_in ? pair.reserve_a : pair.reserve_b;
+    //     let reserve_out: u128 = token_a == token_out ? pair.reserve_a : pair.reserve_b;
+    //     let amount_in_with_fee: u128 = amount_in * 997u128;
+    //     let amount_out: u128 = amount_in_with_fee * reserve_out / (reserve_in * 1000u128 + amount_in_with_fee);
+    //     assert(amount_out >= amount_out_min);
+    //     assert(amount_out > 0u128);
 
-        // transfer input token
-        let bid_in: field = get_balance_id(token_in, caller);
-        Mapping::set(balances, bid_in, Mapping::get(balances, bid_in) - amount_in);
+    //     // transfer input token
+    //     let bid_in: field = get_balance_id(token_in, caller);
+    //     Mapping::set(balances, bid_in, Mapping::get(balances, bid_in) - amount_in);
 
-        // update pair
-        let reserve_in_new: u128 = reserve_in + amount_in;
-        let reserve_out_new: u128 = reserve_out - amount_out;
-        Mapping::set(pairs, pid, Pair {
-            reserve_a: token_a == token_in ? reserve_in_new : reserve_out_new,
-            reserve_b: token_b == token_in ? reserve_in_new : reserve_out_new,
-        });
+    //     // update pair
+    //     let reserve_in_new: u128 = reserve_in + amount_in;
+    //     let reserve_out_new: u128 = reserve_out - amount_out;
+    //     Mapping::set(pairs, pid, Pair {
+    //         reserve_a: token_a == token_in ? reserve_in_new : reserve_out_new,
+    //         reserve_b: token_b == token_in ? reserve_in_new : reserve_out_new,
+    //     });
 
-        // transfer output token(minus the private part)
-        let bid_out: field = get_balance_id(token_out, to_pub);
-        let amount_out_diff: u128 = amount_out - amount_out_min;
-        Mapping::set(balances, bid_out, Mapping::get_or_use(balances, bid_out, 0u128) + amount_out_diff);
-    }
+    //     // transfer output token(minus the private part)
+    //     let bid_out: field = get_balance_id(token_out, to_pub);
+    //     let amount_out_diff: u128 = amount_out - amount_out_min;
+    //     Mapping::set(balances, bid_out, Mapping::get_or_use(balances, bid_out, 0u128) + amount_out_diff);
+    // }
 
     // ========================= swap for exact =========================
 
@@ -1205,57 +1374,57 @@ program swap.aleo {
         // output token has been transferred privately
     }
 
-    // Exchange a variable amount of public input tokens for a fixed amount of private output tokens.
-    transition swap_public_for_exact_private(
-        public token_in: field,
-        public token_out: field,
-        public amount_in_max: u128,
-        public amount_out: u128,
-        private to_pri: address,
-     ) -> (PrivateToken) {
-        assert(token_in != token_out);
-        assert(amount_out > 0u128);
-        let pt_out: PrivateToken = PrivateToken {
-            owner: to_pri,
-            token: token_out,
-            amount: amount_out,
-        };
-        return pt_out then finalize(self.caller, token_in, token_out, amount_in_max, amount_out);
-    }
+    // // Exchange a variable amount of public input tokens for a fixed amount of private output tokens.
+    // transition swap_public_for_exact_private(
+    //     public token_in: field,
+    //     public token_out: field,
+    //     public amount_in_max: u128,
+    //     public amount_out: u128,
+    //     private to_pri: address,
+    //  ) -> (PrivateToken) {
+    //     assert(token_in != token_out);
+    //     assert(amount_out > 0u128);
+    //     let pt_out: PrivateToken = PrivateToken {
+    //         owner: to_pri,
+    //         token: token_out,
+    //         amount: amount_out,
+    //     };
+    //     return pt_out then finalize(self.caller, token_in, token_out, amount_in_max, amount_out);
+    // }
 
-    finalize swap_public_for_exact_private(
-        public caller: address,
-        public token_in: field,
-        public token_out: field,
-        public amount_in_max: u128,
-        public amount_out: u128,
-    ) {
-        let token_a: field = token_in < token_out ? token_in : token_out;
-        let token_b: field = token_in < token_out ? token_out : token_in;
-        let pid: field = get_pair_id(token_a, token_b);
-        let pair: Pair = Mapping::get(pairs, pid);
+    // finalize swap_public_for_exact_private(
+    //     public caller: address,
+    //     public token_in: field,
+    //     public token_out: field,
+    //     public amount_in_max: u128,
+    //     public amount_out: u128,
+    // ) {
+    //     let token_a: field = token_in < token_out ? token_in : token_out;
+    //     let token_b: field = token_in < token_out ? token_out : token_in;
+    //     let pid: field = get_pair_id(token_a, token_b);
+    //     let pair: Pair = Mapping::get(pairs, pid);
 
-        // calculate input amount
-        let reserve_in: u128 = token_a == token_in ? pair.reserve_a : pair.reserve_b;
-        let reserve_out: u128 = token_a == token_out ? pair.reserve_a : pair.reserve_b;
-        let amount_in: u128 = reserve_in * amount_out * 1000u128 / ((reserve_out - amount_out) * 997u128) + 1u128;
-        assert(amount_in <= amount_in_max);
-        assert(amount_in > 0u128);
+    //     // calculate input amount
+    //     let reserve_in: u128 = token_a == token_in ? pair.reserve_a : pair.reserve_b;
+    //     let reserve_out: u128 = token_a == token_out ? pair.reserve_a : pair.reserve_b;
+    //     let amount_in: u128 = reserve_in * amount_out * 1000u128 / ((reserve_out - amount_out) * 997u128) + 1u128;
+    //     assert(amount_in <= amount_in_max);
+    //     assert(amount_in > 0u128);
 
-        // transfer input token
-        let bid_in: field = get_balance_id(token_in, caller);
-        Mapping::set(balances, bid_in, Mapping::get(balances, bid_in) - amount_in);
+    //     // transfer input token
+    //     let bid_in: field = get_balance_id(token_in, caller);
+    //     Mapping::set(balances, bid_in, Mapping::get(balances, bid_in) - amount_in);
 
-        // update pair
-        let reserve_in_new: u128 = reserve_in + amount_in;
-        let reserve_out_new: u128 = reserve_out - amount_out;
-        Mapping::set(pairs, pid, Pair {
-            reserve_a: token_a == token_in ? reserve_in_new : reserve_out_new,
-            reserve_b: token_b == token_in ? reserve_in_new : reserve_out_new,
-        });
+    //     // update pair
+    //     let reserve_in_new: u128 = reserve_in + amount_in;
+    //     let reserve_out_new: u128 = reserve_out - amount_out;
+    //     Mapping::set(pairs, pid, Pair {
+    //         reserve_a: token_a == token_in ? reserve_in_new : reserve_out_new,
+    //         reserve_b: token_b == token_in ? reserve_in_new : reserve_out_new,
+    //     });
 
-        // output token has been transferred privately
-    }
+    //     // output token has been transferred privately
+    // }
 
 
     // ========================= inline =========================

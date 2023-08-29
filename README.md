@@ -23,8 +23,11 @@ Learn more about the project:
     - [transfer\_privately](#transfer_privately)
     - [join](#join)
     - [create\_pair](#create_pair)
+    - [create\_pair\_privately](#create_pair_privately)
     - [add\_liquidity](#add_liquidity)
+    - [add\_liquidity\_privately](#add_liquidity_privately)
     - [remove\_liquidity](#remove_liquidity)
+    - [remove\_liquidity\_privately](#remove_liquidity_privately)
     - [wrap\_private\_credits](#wrap_private_credits)
     - [wrap\_public\_credits](#wrap_public_credits)
     - [unwrap](#unwrap)
@@ -53,7 +56,11 @@ Learn more about the project:
 
 ## Deployment
 
-[aleoswap04.aleo](https://explorer.hamp.app/program?id=aleoswap04.aleo)
+- [aleoswap05.aleo](https://explorer.hamp.app/program?id=aleoswap05.aleo)
+- [aleoswap04.aleo](https://explorer.hamp.app/program?id=aleoswap04.aleo)
+- [aleoswap03.aleo](https://explorer.hamp.app/program?id=aleoswap03.aleo)
+- [aleoswap02.aleo](https://explorer.hamp.app/program?id=aleoswap02.aleo)
+- [hello_als1.aleo](https://explorer.hamp.app/program?id=hello_als1.aleo)
 
 ## Functions
 
@@ -251,7 +258,7 @@ snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_
 ### create_pair
 
 `create_pair` is used to create a new pair and add initial liquidity.
-- A pair must be created through this function before subsequent liquidity and swap operations can be performed.
+- A pair must be created through this function (or `create_pair_privately`) before subsequent liquidity and swap operations can be performed.
 - Each pair is also a standard token (called liquidity pool token or LP token) created automatically when the pair is created,
   and its token_id is the same as pair_id: `lp_token_id = pair_id = bhp256_hash({token_a: field, token_b: field})`.
 - This function can only be used to add initial liquidity, further liquidity additions require calling the `add_liquidity` function.
@@ -281,6 +288,34 @@ snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_
   $program_id create_pair 1field 2field 100000000u128 10000000000u128 $to_addr
 ```
 
+### create_pair_privately
+
+`create_pair_privately` is used to create a new pair and add initial liquidity privately.
+
+Function:
+```rust
+transition create_pair_privately(
+    private pt_a: PrivateToken,
+    private pt_b: PrivateToken,
+    public amount_a: u128,
+    public amount_b: u128,
+    private to: address,
+    public liquidity: u128,
+) -> (PrivateToken, PrivateToken, PrivateToken)
+```
+
+Params:
+- `pt_a: PrivateToken`: the PrivateToken record of `token_a` to be spent
+- `pt_b: PrivateToken`: the PrivateToken record of `token_b` to be spent, require `pt_a.token < pt_b.token`
+- `amount_a: u128`: the amount of `token_a` to be added as the initial liquidity
+- `amount_b: u128`: the amount of `token_b` to be added as the initial liquidity
+- `to: address`: the address to receive the private LP tokens
+- `liquidity: u128`: the amount of LP token to add initially
+- Output 3 `PrivateToken` records:
+  1. the output LP token owned by `to`
+  2. the change of `pt_a` owned by caller
+  3. the change of `pt_b` owned by caller
+
 ### add_liquidity
 
 `add_liquidity` is used to add liquidity to a pair.
@@ -301,7 +336,7 @@ add_liquidity(
 
 Params:
 - `token_a: field`: the token with the smaller token id
-- `token_b: field`: the token with the larger token id
+- `token_b: field`: the token with the larger token id, require `token_a < token_b`
 - `amount_a: u128`: the max amount of `token_a` to be added
 - `amount_b: u128`: the max amount of `token_b` to be added
 - `min_a: u128`: the min amount of `token_a` to be added
@@ -313,6 +348,40 @@ Command:
 snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
   $program_id add_liquidity 1field 2field 100000000u128 10000000000u128 0u128 0u128 $to_addr
 ```
+
+### add_liquidity_privately
+
+`add_liquidity_privately` is used to add liquidity to a pair privately.
+
+Function:
+```rust
+transition add_liquidity_privately(
+    private pt_a: PrivateToken,
+    private pt_b: PrivateToken,
+    public amount_a: u128,
+    public amount_b: u128,
+    public min_a: u128,
+    public min_b: u128,
+    public min_liquidity: u128,
+    private to: address,
+    public refund_to: address,
+) -> (PrivateToken, PrivateToken, PrivateToken)
+```
+
+Params:
+- `pt_a: PrivateToken`: the PrivateToken record of `token_a` to be spent
+- `pt_b: PrivateToken`: the PrivateToken record of `token_b` to be spent, require `pt_a.token < pt_b.token`
+- `amount_a: u128`: the max amount of `token_a` to be added
+- `amount_b: u128`: the max amount of `token_b` to be added
+- `min_a: u128`: the min amount of `token_a` to be added
+- `min_b: u128`: the min amount of `token_b` to be added
+- `min_liquidity: u128`: the min amount of LP token to receive
+- `refund_to: address`: the address to receive the refunded LP token publicly
+
+- Output 3 `PrivateToken` records:
+  1. the output LP token owned by `to`
+  2. the change of `pt_a` owned by caller
+  3. the change of `pt_b` owned by caller
 
 ### remove_liquidity
 
@@ -344,6 +413,38 @@ Command:
 snarkos developer execute -q $rpc_url -b $broadcast_url -p $private_key -r $fee_record \
   $program_id remove_liquidity 1field 2field 1000000000u128 0u128 0u128 $to_addr
 ```
+
+### remove_liquidity_privately
+
+`remove_liquidity` is used to remove liquidity from a pair privately.
+
+Function:
+```rust
+transition remove_liquidity_privately(
+    public token_a: field,
+    public token_b: field,
+    private pt_lp: PrivateToken,
+    public liquidity: u128,
+    public min_a: u128,
+    public min_b: u128,
+    private to: address,
+    public refund_to: address,
+) -> (PrivateToken, PrivateToken, PrivateToken)
+```
+
+Params:
+- `token_a: field`: the token with the smaller token id
+- `token_b: field`: the token with the larger token id
+- `pt_lp: PrivateToken`: the PrivateToken record of LP token to be spent
+- `liquidity: u128`: the amount of LP token to remove
+- `min_a: u128`: the min amount of `token_a` to be removed
+- `min_b: u128`: the min amount of `token_b` to be removed
+- `to: address`: the address to receive the `token_a` and `token_b` tokens
+- `refund_to: address`: the address to receive the remaining `token_a` and `token_b` publicly
+- Output 3 `PrivateToken` records:
+  1. the output `token_a` record owned by `to`
+  2. the output `token_b` record owned by `to`
+  3. the change of `pt_lp` owned by caller
 
 ### wrap_private_credits
 
